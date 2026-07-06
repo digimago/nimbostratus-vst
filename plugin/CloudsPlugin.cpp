@@ -17,6 +17,7 @@
 #include "speex_resampler.h"
 
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <vector>
 
@@ -65,6 +66,12 @@ public:
         values_[kParamQuality]  = 0.0f;
         values_[kParamReverse]  = 0.0f;
         values_[kParamSlice]    = 0.0f;
+        values_[kParamSync]     = 0.0f;
+
+        beatPos_ = 0.0;
+        bpm_ = 120.0;
+        beatsPerBar_ = 4.0;
+        lastDivIndex_ = INT64_MIN;
 
         processor_.Init(largeBuffer_, sizeof(largeBuffer_),
                         smallBuffer_, sizeof(smallBuffer_));
@@ -213,6 +220,12 @@ protected:
             parameter.symbol = "slice";
             parameter.ranges.def = 0.0f; parameter.ranges.min = 0.0f; parameter.ranges.max = 1.0f;
             break;
+        case kParamSync:
+            parameter.hints |= kParameterIsBoolean;
+            parameter.name = "Tempo Sync";
+            parameter.symbol = "sync";
+            parameter.ranges.def = 0.0f; parameter.ranges.min = 0.0f; parameter.ranges.max = 1.0f;
+            break;
         }
     }
 
@@ -233,6 +246,7 @@ protected:
         fifo32Out_.clear();
         fifoHostOut_.clear();
         prevGate_ = false;
+        lastDivIndex_ = INT64_MIN;
 
         if (srIn_ != nullptr)
             speex_resampler_reset_mem(srIn_);
@@ -265,6 +279,23 @@ protected:
         const unsigned int oldCsr = _mm_getcsr();
         _mm_setcsr(oldCsr | 0x8040); // flush-to-zero + denormals-are-zero
 #endif
+
+        // Track the host transport for tempo sync. While the host plays with
+        // BBT info the beat position is re-anchored every cycle (so triggers
+        // stay beat-aligned); otherwise it free-runs at the last known tempo.
+        const TimePosition& tp(getTimePosition());
+        if (tp.bbt.valid)
+        {
+            if (tp.bbt.beatsPerMinute > 20.0)
+                bpm_ = tp.bbt.beatsPerMinute;
+            if (tp.bbt.beatsPerBar > 0.5f)
+                beatsPerBar_ = tp.bbt.beatsPerBar;
+            if (tp.playing)
+                beatPos_ = (tp.bbt.bar - 1) * static_cast<double>(tp.bbt.beatsPerBar)
+                         + (tp.bbt.beat - 1)
+                         + tp.bbt.tick / tp.bbt.ticksPerBeat;
+        }
+        const double beatsPerCloudsBlock = bpm_ / 60.0 * (kBlock / kCloudsRate);
 
         // Interleave host input.
         scratch_.resize(frames * 2);
@@ -300,7 +331,30 @@ protected:
             }
             consumed += kBlock * 2;
 
-            applyParameters();
+            // Fire an internal trigger on every division boundary while
+            // synced; Density acts as the clock divider.
+            bool syncTrigger = false;
+            if (values_[kParamSync] > 0.5f)
+            {
+                const double divBeats = syncDivisionBeats(
+                    syncDivIndex(values_[kParamDensity]), beatsPerBar_);
+                const int64_t divIndex =
+                    static_cast<int64_t>(std::floor(beatPos_ / divBeats));
+                if (lastDivIndex_ == INT64_MIN)
+                    lastDivIndex_ = divIndex;
+                else if (divIndex != lastDivIndex_)
+                {
+                    syncTrigger = true;
+                    lastDivIndex_ = divIndex;
+                }
+            }
+            else
+            {
+                lastDivIndex_ = INT64_MIN;
+            }
+            beatPos_ += beatsPerCloudsBlock;
+
+            applyParameters(syncTrigger);
             processor_.Process(in, out, kBlock);
             processor_.Prepare();
 
@@ -359,17 +413,23 @@ private:
         return static_cast<int16_t>(y);
     }
 
-    void applyParameters()
+    void applyParameters(const bool syncTrigger)
     {
         processor_.set_playback_mode(static_cast<clouds::PlaybackMode>(
             static_cast<int>(values_[kParamMode] + 0.5f)));
         processor_.set_quality(static_cast<int32_t>(values_[kParamQuality] + 0.5f));
 
+        // While synced, Density is the clock divider, so the engine gets a
+        // neutral density (0.5 = no autonomous grains in granular mode);
+        // grains come only from the beat-aligned triggers.
+        const bool sync = values_[kParamSync] > 0.5f;
+        const float density = sync ? 0.5f : values_[kParamDensity];
+
         clouds::Parameters* const p = processor_.mutable_parameters();
         p->position      = values_[kParamPosition];
         p->size          = values_[kParamSize];
         p->pitch         = values_[kParamPitch];
-        p->density       = values_[kParamDensity];
+        p->density       = density;
         p->texture       = values_[kParamTexture];
         p->dry_wet       = values_[kParamDryWet];
         p->stereo_spread = values_[kParamSpread];
@@ -383,7 +443,7 @@ private:
         // it gets a dedicated parameter here.
         p->kammerl.slice_selection  = values_[kParamSlice];
         p->kammerl.slice_modulation = values_[kParamTexture];
-        p->kammerl.size_modulation  = values_[kParamDensity];
+        p->kammerl.size_modulation  = density;
         p->kammerl.probability      = values_[kParamDryWet];
         p->kammerl.clock_divider    = values_[kParamSpread];
         p->kammerl.pitch_mode       = values_[kParamFeedback];
@@ -394,7 +454,7 @@ private:
         p->kammerl.pitch = kammerlPitch;
 
         const bool gate = values_[kParamTrigger] > 0.5f;
-        p->capture = gate && !prevGate_;
+        p->capture = (gate && !prevGate_) || syncTrigger;
         p->gate    = gate;
         prevGate_  = gate;
     }
@@ -434,6 +494,12 @@ private:
 
     float values_[kParamCount];
     bool prevGate_;
+
+    // Tempo-sync state.
+    double beatPos_;
+    double bpm_;
+    double beatsPerBar_;
+    int64_t lastDivIndex_;
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CloudsPlugin)
 };

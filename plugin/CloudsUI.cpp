@@ -9,6 +9,9 @@
 
 #include "DearImGuiKnobs/imgui-knobs.h"
 
+#include <cstdio>
+#include <cstring>
+
 START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------
@@ -149,7 +152,15 @@ protected:
         knob(kParamPitch, kKnobLabels[mode][2], -24.0f, 24.0f, bigKnob, "%.2f st",
              /*withInput*/ true); // drag or ctrl+click the field for exact tuning
         ImGui::SameLine();
-        knob(kParamDensity, kKnobLabels[mode][3], 0.0f, 1.0f, bigKnob, "%.2f");
+        // While synced, Density is the trigger clock divider; show the
+        // musical division as its label.
+        const bool sync = values_[kParamSync] > 0.5f;
+        char densityLabel[24];
+        if (sync)
+            std::snprintf(densityLabel, sizeof(densityLabel), "Rate %s",
+                          kSyncDivLabels[syncDivIndex(values_[kParamDensity])]);
+        knob(kParamDensity, sync ? densityLabel : kKnobLabels[mode][3],
+             0.0f, 1.0f, bigKnob, "%.2f");
         ImGui::SameLine();
         knob(kParamTexture, kKnobLabels[mode][4], 0.0f, 1.0f, bigKnob, "%.2f");
 
@@ -167,6 +178,9 @@ protected:
         const bool reverse = values_[kParamReverse] > 0.5f;
         if (toggleButton("REVERSE", reverse, buttonSize))
             setBoolParameter(kParamReverse, !reverse);
+
+        if (toggleButton("SYNC", sync, buttonSize))
+            setBoolParameter(kParamSync, !sync);
 
         ImGui::Button("TRIG", buttonSize);
         const bool trigNow = ImGui::IsItemActive();
