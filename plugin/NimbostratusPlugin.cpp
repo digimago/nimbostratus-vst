@@ -102,7 +102,7 @@ protected:
                "pitch/stretch, looping delay, spectral, Oliverb, Resonestor, beat "
                "repeat and spectral cloud.";
     }
-    const char* getMaker() const override       { return "DigiMago"; }
+    const char* getMaker() const override       { return "digimago"; }
     const char* getHomePage() const override    { return "https://github.com/pichenettes/eurorack"; }
     const char* getLicense() const override     { return "MIT"; }
     uint32_t getVersion() const override
