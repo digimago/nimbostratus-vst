@@ -1,7 +1,7 @@
 // Parameter ids shared between DSP and UI.
 
-#ifndef CLOUDS_PARAMS_H_INCLUDED
-#define CLOUDS_PARAMS_H_INCLUDED
+#ifndef NIMBOSTRATUS_PARAMS_H_INCLUDED
+#define NIMBOSTRATUS_PARAMS_H_INCLUDED
 
 enum ParamId {
     kParamPosition = 0,
@@ -20,6 +20,7 @@ enum ParamId {
     kParamReverse,
     kParamSlice,
     kParamSync,
+    kParamActivity,  // output-only: lights the TRIG button on every trigger
     kParamCount
 };
 
@@ -55,4 +56,4 @@ static inline double syncDivisionBeats(const int idx, const double beatsPerBar)
     }
 }
 
-#endif // CLOUDS_PARAMS_H_INCLUDED
+#endif // NIMBOSTRATUS_PARAMS_H_INCLUDED
