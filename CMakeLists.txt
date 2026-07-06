@@ -15,10 +15,10 @@ dpf_add_plugin(nimbostratus
   TARGETS vst3 clap
   UI_TYPE opengl
   FILES_UI
-    plugin/CloudsUI.cpp
+    plugin/NimbostratusUI.cpp
     dpf-widgets/opengl/DearImGui.cpp
   FILES_DSP
-    plugin/CloudsPlugin.cpp
+    plugin/NimbostratusPlugin.cpp
     ${SP}/supercell/dsp/correlator.cc
     ${SP}/supercell/dsp/granular_processor.cc
     ${SP}/supercell/dsp/mu_law.cc
@@ -43,7 +43,7 @@ target_include_directories(nimbostratus PUBLIC
   dpf-widgets/opengl
 )
 
-# TEST keeps stmlib/clouds off the STM32-specific code paths (same define the
+# TEST keeps the vendored firmware DSP off the STM32-specific code paths (same define the
 # firmware's own desktop test harness uses). -Wno-narrowing: the firmware
 # brace-initializes bools from 0.0f, an error on modern GCC.
 target_compile_definitions(nimbostratus PUBLIC TEST
@@ -53,7 +53,7 @@ target_compile_definitions(nimbostratus PUBLIC TEST
 target_compile_options(nimbostratus PUBLIC -Wno-narrowing)
 
 set_source_files_properties(${SPEEX}/libspeexdsp/resample.c PROPERTIES
-  COMPILE_DEFINITIONS "OUTSIDE_SPEEX;FLOATING_POINT;EXPORT=;RANDOM_PREFIX=cloudsvst")
+  COMPILE_DEFINITIONS "OUTSIDE_SPEEX;FLOATING_POINT;EXPORT=;RANDOM_PREFIX=nimbodsp")
 
 if(MINGW)
   # Self-contained binaries: no libstdc++/libgcc/winpthread DLL dependencies.

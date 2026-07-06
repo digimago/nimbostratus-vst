@@ -1,5 +1,5 @@
-// Plugin metadata for the DPF wrapper around the Mutable Instruments
-// Clouds DSP code (MIT licensed, by Emilie Gillet).
+// Plugin metadata for the DPF wrapper around the granular DSP
+// by Emilie Gillet (MIT licensed).
 
 #ifndef DISTRHO_PLUGIN_INFO_H_INCLUDED
 #define DISTRHO_PLUGIN_INFO_H_INCLUDED

@@ -1,7 +1,7 @@
-// DPF plugin wrapping the Mutable Instruments Clouds granular processor.
+// DPF plugin wrapping the granular processor DSP by Emilie Gillet
 //
-// The DSP is the unmodified firmware code (eurorack/clouds/dsp), which runs
-// at 32 kHz on int16 frames in blocks of 32 samples, exactly like the
+// The DSP is the unmodified firmware code (superparasites/supercell/dsp),
+// running at 32 kHz on int16 frames in blocks of 32 samples, exactly like the
 // hardware. Host audio is resampled to/from 32 kHz with the speexdsp
 // resampler, mirroring how the VCV Rack port drives the same code.
 
@@ -12,7 +12,7 @@
 // Must match the defines resample.c is built with, so the renamed
 // (RANDOM_PREFIX'd) symbols line up at link time.
 #define OUTSIDE_SPEEX
-#define RANDOM_PREFIX cloudsvst
+#define RANDOM_PREFIX nimbodsp
 #define EXPORT
 #include "speex_resampler.h"
 
@@ -23,21 +23,21 @@
 
 #if defined(__SSE2__) || defined(_M_X64)
 #include <immintrin.h>
-#define CLOUDS_HAVE_SSE 1
+#define NIMBO_HAVE_SSE 1
 #endif
 
 START_NAMESPACE_DISTRHO
 
-static constexpr double   kCloudsRate  = 32000.0;
+static constexpr double   kEngineRate  = 32000.0;
 static constexpr uint32_t kBlock       = clouds::kMaxBlockSize; // 32
 static constexpr int      kSrcQuality  = 6;
 
-#include "CloudsParams.h"
+#include "NimbostratusParams.h"
 
-class CloudsPlugin : public Plugin
+class NimbostratusPlugin : public Plugin
 {
 public:
-    CloudsPlugin()
+    NimbostratusPlugin()
         : Plugin(kParamCount, 0, 0),
           srIn_(nullptr),
           srOut_(nullptr),
@@ -87,7 +87,7 @@ public:
         createResamplers();
     }
 
-    ~CloudsPlugin() override
+    ~NimbostratusPlugin() override
     {
         destroyResamplers();
     }
@@ -265,7 +265,7 @@ protected:
 
         // Prime the output queue so block-size mismatch between the host and
         // the 32-frame/32 kHz processing grid never underruns.
-        const double ratio = getSampleRate() / kCloudsRate;
+        const double ratio = getSampleRate() / kEngineRate;
         const uint32_t prime = static_cast<uint32_t>(kBlock * ratio) + 16;
         fifoHostOut_.assign(prime * 2, 0.0f);
 
@@ -285,7 +285,7 @@ protected:
 
     void run(const float** inputs, float** outputs, uint32_t frames) override
     {
-#ifdef CLOUDS_HAVE_SSE
+#ifdef NIMBO_HAVE_SSE
         const unsigned int oldCsr = _mm_getcsr();
         _mm_setcsr(oldCsr | 0x8040); // flush-to-zero + denormals-are-zero
 #endif
@@ -305,7 +305,7 @@ protected:
                          + (tp.bbt.beat - 1)
                          + tp.bbt.tick / tp.bbt.ticksPerBeat;
         }
-        const double beatsPerCloudsBlock = bpm_ / 60.0 * (kBlock / kCloudsRate);
+        const double beatsPerEngineBlock = bpm_ / 60.0 * (kBlock / kEngineRate);
 
         // Interleave host input.
         scratch_.resize(frames * 2);
@@ -319,7 +319,7 @@ protected:
         {
             spx_uint32_t inLen = frames;
             spx_uint32_t outLen = static_cast<spx_uint32_t>(
-                std::ceil(frames * kCloudsRate / getSampleRate())) + 16;
+                std::ceil(frames * kEngineRate / getSampleRate())) + 16;
             const size_t base = fifo32In_.size();
             fifo32In_.resize(base + outLen * 2);
             speex_resampler_process_interleaved_float(
@@ -327,7 +327,7 @@ protected:
             fifo32In_.resize(base + outLen * 2);
         }
 
-        // Run the Clouds engine on complete 32-frame blocks.
+        // Run the engine on complete 32-frame blocks.
         size_t consumed = 0;
         while (fifo32In_.size() - consumed >= kBlock * 2)
         {
@@ -362,7 +362,7 @@ protected:
             {
                 lastDivIndex_ = INT64_MIN;
             }
-            beatPos_ += beatsPerCloudsBlock;
+            beatPos_ += beatsPerEngineBlock;
 
             const bool captured = applyParameters(syncTrigger);
             if (captured)
@@ -390,7 +390,7 @@ protected:
         {
             spx_uint32_t inLen = static_cast<spx_uint32_t>(fifo32Out_.size() / 2);
             spx_uint32_t outLen = static_cast<spx_uint32_t>(
-                std::ceil(inLen * getSampleRate() / kCloudsRate)) + 16;
+                std::ceil(inLen * getSampleRate() / kEngineRate)) + 16;
             const size_t base = fifoHostOut_.size();
             fifoHostOut_.resize(base + outLen * 2);
             speex_resampler_process_interleaved_float(
@@ -415,7 +415,7 @@ protected:
         }
         fifoHostOut_.erase(fifoHostOut_.begin(), fifoHostOut_.begin() + n * 2);
 
-#ifdef CLOUDS_HAVE_SSE
+#ifdef NIMBO_HAVE_SSE
         _mm_setcsr(oldCsr);
 #endif
     }
@@ -482,9 +482,9 @@ private:
         int err = 0;
         srIn_ = speex_resampler_init(
             2, static_cast<spx_uint32_t>(getSampleRate()),
-            static_cast<spx_uint32_t>(kCloudsRate), kSrcQuality, &err);
+            static_cast<spx_uint32_t>(kEngineRate), kSrcQuality, &err);
         srOut_ = speex_resampler_init(
-            2, static_cast<spx_uint32_t>(kCloudsRate),
+            2, static_cast<spx_uint32_t>(kEngineRate),
             static_cast<spx_uint32_t>(getSampleRate()), kSrcQuality, &err);
     }
 
@@ -519,12 +519,12 @@ private:
     int64_t lastDivIndex_;
     int32_t activityBlocks_;
 
-    DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CloudsPlugin)
+    DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NimbostratusPlugin)
 };
 
 Plugin* createPlugin()
 {
-    return new CloudsPlugin();
+    return new NimbostratusPlugin();
 }
 
 END_NAMESPACE_DISTRHO

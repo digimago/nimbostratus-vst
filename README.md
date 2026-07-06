@@ -65,8 +65,8 @@ tools/mingw64/bin/g++.exe -O2 -DTEST -Wno-narrowing -w -I$S \
   stmlib submodule), MIT. Already contains the Window::Start `done_` fix.
 - `dpf/` — DISTRHO/DPF, ISC. `dpf-widgets/` — DISTRHO/DPF-Widgets (Dear ImGui).
 - `speexdsp/` — xiph/speexdsp resampler, BSD.
-- `plugin/` — the wrapper: CloudsPlugin.cpp (DSP), CloudsUI.cpp (ImGui UI),
-  CloudsParams.h (shared ids), DistrhoPluginInfo.h.
+- `plugin/` — the wrapper: NimbostratusPlugin.cpp (DSP), NimbostratusUI.cpp (ImGui UI),
+  NimbostratusParams.h (shared ids), DistrhoPluginInfo.h.
 - `eurorack/` — original stock Clouds sources (no longer compiled; kept for
   reference, carries the same window.h fix locally).
 

@@ -1,11 +1,11 @@
-// Dear ImGui interface for the Clouds / SuperParasites plugin.
+// Dear ImGui interface for the Nimbostratus plugin.
 //
 // Knob labels follow the active playback mode, mirroring how the hardware
 // repurposes its pots per mode.
 
 #include "DistrhoUI.hpp"
 
-#include "CloudsParams.h"
+#include "NimbostratusParams.h"
 
 #include "DearImGuiKnobs/imgui-knobs.h"
 
@@ -22,7 +22,7 @@ static const char* const kModeNames[8] = {
 };
 
 static const char* const kModeHints[8] = {
-    "Classic Clouds granular texture synthesis",
+    "Classic granular texture synthesis",
     "WSOLA pitch shifter / time stretcher",
     "Looping delay with overdub",
     "Spectral madness: FFT magnitude warping",
@@ -157,10 +157,10 @@ static const char* const kTrigTip =
 static const char* const kQualityTip =
     "Buffer quality vs. length: mono and 8-bit u-law extend recording time and add vintage grit";
 
-class CloudsUI : public UI
+class NimbostratusUI : public UI
 {
 public:
-    CloudsUI()
+    NimbostratusUI()
         : UI(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT),
           triggerHeld_(false)
     {
@@ -200,7 +200,7 @@ protected:
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(ImVec2(width, height));
 
-        ImGui::Begin("Clouds", nullptr,
+        ImGui::Begin("Nimbostratus", nullptr,
                      ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
                      ImGuiWindowFlags_NoScrollWithMouse);
 
@@ -463,12 +463,12 @@ private:
     float values_[kParamCount];
     bool triggerHeld_;
 
-    DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CloudsUI)
+    DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NimbostratusUI)
 };
 
 UI* createUI()
 {
-    return new CloudsUI();
+    return new NimbostratusUI();
 }
 
 END_NAMESPACE_DISTRHO
