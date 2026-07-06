@@ -42,8 +42,8 @@ PATH="$T/mingw64/bin:$PATH" "$T/ninja.exe" -C build
 ```
 
 Outputs: `build/bin/nimbostratus.vst3` (bundle) and `build/bin/nimbostratus.clap`.
-Install: copy to `%USERPROFILE%\Documents\VST3` (Live custom VST3 folder) or
-`C:\Program Files\Common Files\VST3` (admin).
+Install: copy to your Live custom VST3 folder (e.g. `%USERPROFILE%\Documents\VST3`)
+or `C:\Program Files\Common Files\VST3` (admin).
 
 ## Test
 

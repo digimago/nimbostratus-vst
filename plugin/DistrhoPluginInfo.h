@@ -5,8 +5,9 @@
 #define DISTRHO_PLUGIN_INFO_H_INCLUDED
 
 // Display name only; internal ids keep the original "clouds" values so
-// existing host sessions keep resolving to the same plugin.
-#define DISTRHO_PLUGIN_BRAND    "DigiMago"
+// existing host sessions keep resolving to the same plugin. The URI is only
+// used for the (unbuilt) LV2 target, so it can point at the public repo.
+#define DISTRHO_PLUGIN_BRAND    "digimago"
 #define DISTRHO_PLUGIN_NAME     "Nimbostratus"
 #define DISTRHO_PLUGIN_URI      "https://github.com/digimago/nimbostratus-vst"
 #define DISTRHO_PLUGIN_CLAP_ID  "nl.digimago.clouds"
