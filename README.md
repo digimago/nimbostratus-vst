@@ -110,3 +110,21 @@ To publish a release:
 
 Plain pushes (no tag) still run both builds as CI validation with
 downloadable artifacts.
+
+## Development workflow
+
+`main` is always releasable; nothing lands on it directly.
+
+1. Branch from `main`: `feature/<name>` or `fix/<name>`.
+2. Open a pull request — CI builds Windows + macOS on every push to the
+   branch and on the PR itself.
+3. Merge to `main` after review and green CI.
+4. To cut a release: bump `project(... VERSION x.y.z)` in `CMakeLists.txt`
+   and update `RELEASE_NOTES.md` (via PR like everything else), then tag:
+   - Release candidate: `git tag vX.Y.Z-rc.1 && git push origin vX.Y.Z-rc.1`
+     → published as a **prerelease** with binaries for testing.
+   - Final: `git tag vX.Y.Z && git push origin vX.Y.Z` → full release with
+     the notes from `RELEASE_NOTES.md` plus an auto-generated change list.
+
+The release job refuses to publish if the tag doesn't match the CMake
+version (RC suffixes are ignored for the comparison).
