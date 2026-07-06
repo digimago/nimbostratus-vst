@@ -96,7 +96,10 @@ protected:
     const char* getMaker() const override       { return "DigiMago"; }
     const char* getHomePage() const override    { return "https://github.com/pichenettes/eurorack"; }
     const char* getLicense() const override     { return "MIT"; }
-    uint32_t getVersion() const override        { return d_version(1, 2, 0); }
+    uint32_t getVersion() const override
+    {
+        return d_version(NIMBO_VERSION_MAJOR, NIMBO_VERSION_MINOR, NIMBO_VERSION_PATCH);
+    }
     int64_t getUniqueId() const override        { return d_cconst('d', 'g', 'C', 'l'); }
 
     void initParameter(uint32_t index, Parameter& parameter) override

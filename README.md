@@ -95,3 +95,18 @@ Every push builds a universal (arm64 + x86_64) `nimbostratus.vst3` and
 grab them from the workflow run's artifacts. After copying to
 `~/Library/Audio/Plug-Ins/VST3`, clear quarantine if downloaded via browser:
 `xattr -cr ~/Library/Audio/Plug-Ins/VST3/nimbostratus.vst3`.
+
+## Releases
+
+Version lives in one place: `project(Nimbostratus VERSION x.y.z)` in
+`CMakeLists.txt` (the plugin reports it via `NIMBO_VERSION_*` defines).
+To publish a release:
+
+1. Bump the version in `CMakeLists.txt` (semver: breaking/feature/fix).
+2. Commit, then tag and push: `git tag v1.3.0 && git push origin main v1.3.0`
+3. CI builds Windows x64 + macOS universal, verifies the tag matches the
+   CMake version, and publishes a GitHub Release with auto-generated notes
+   and both zips attached.
+
+Plain pushes (no tag) still run both builds as CI validation with
+downloadable artifacts.

@@ -2,6 +2,9 @@ name: build
 
 on:
   push:
+    branches: ['**']
+    tags: ['v*.*.*']
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -29,3 +32,71 @@ jobs:
           path: |
             build/bin/nimbostratus.vst3
             build/bin/nimbostratus.clap
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel 3
+
+      - name: Upload plugins
+        uses: actions/upload-artifact@v4
+        with:
+          name: nimbostratus-windows-x64
+          path: |
+            build/bin/nimbostratus.vst3
+            build/bin/nimbostratus.clap
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [macos, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify tag matches project version
+        run: |
+          ver=$(sed -n 's/^project(.* VERSION \([0-9][0-9.]*\).*/\1/p' CMakeLists.txt)
+          tag=${GITHUB_REF_NAME#v}
+          if [ "$ver" != "$tag" ]; then
+            echo "::error::Tag v$tag does not match CMake project version $ver — bump CMakeLists.txt first" >&2
+            exit 1
+          fi
+          echo "Releasing version $ver"
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Package release zips
+        run: |
+          (cd artifacts/nimbostratus-macos-universal && zip -qr "$GITHUB_WORKSPACE/nimbostratus-$GITHUB_REF_NAME-macos-universal.zip" .)
+          (cd artifacts/nimbostratus-windows-x64 && zip -qr "$GITHUB_WORKSPACE/nimbostratus-$GITHUB_REF_NAME-windows-x64.zip" .)
+          ls -la *.zip
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: nimbostratus-*.zip

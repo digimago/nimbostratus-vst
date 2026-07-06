@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
-project(CloudsVST VERSION 1.0.0 LANGUAGES C CXX)
+# Single source of truth for the plugin version; the release workflow
+# verifies the git tag matches this before publishing.
+project(Nimbostratus VERSION 1.2.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -44,7 +46,10 @@ target_include_directories(nimbostratus PUBLIC
 # TEST keeps stmlib/clouds off the STM32-specific code paths (same define the
 # firmware's own desktop test harness uses). -Wno-narrowing: the firmware
 # brace-initializes bools from 0.0f, an error on modern GCC.
-target_compile_definitions(nimbostratus PUBLIC TEST)
+target_compile_definitions(nimbostratus PUBLIC TEST
+  NIMBO_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
+  NIMBO_VERSION_MINOR=${PROJECT_VERSION_MINOR}
+  NIMBO_VERSION_PATCH=${PROJECT_VERSION_PATCH})
 target_compile_options(nimbostratus PUBLIC -Wno-narrowing)
 
 set_source_files_properties(${SPEEX}/libspeexdsp/resample.c PROPERTIES
