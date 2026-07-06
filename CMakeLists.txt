@@ -1,0 +1,60 @@
+cmake_minimum_required(VERSION 3.24)
+project(CloudsVST VERSION 1.0.0 LANGUAGES C CXX)
+
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_subdirectory(dpf)
+
+set(SP ${CMAKE_CURRENT_SOURCE_DIR}/superparasites)
+set(SPEEX ${CMAKE_CURRENT_SOURCE_DIR}/speexdsp)
+
+dpf_add_plugin(nubila
+  TARGETS vst3 clap
+  UI_TYPE opengl
+  FILES_UI
+    plugin/CloudsUI.cpp
+    dpf-widgets/opengl/DearImGui.cpp
+  FILES_DSP
+    plugin/CloudsPlugin.cpp
+    ${SP}/supercell/dsp/correlator.cc
+    ${SP}/supercell/dsp/granular_processor.cc
+    ${SP}/supercell/dsp/mu_law.cc
+    ${SP}/supercell/dsp/kammerl_player.cc
+    ${SP}/supercell/dsp/pvoc/frame_transformation.cc
+    ${SP}/supercell/dsp/pvoc/phase_vocoder.cc
+    ${SP}/supercell/dsp/pvoc/spectral_clouds_transformation.cc
+    ${SP}/supercell/dsp/pvoc/stft.cc
+    ${SP}/supercell/resources.cc
+    ${SP}/stmlib/utils/random.cc
+    ${SP}/stmlib/dsp/atan.cc
+    ${SP}/stmlib/dsp/units.cc
+    ${SPEEX}/libspeexdsp/resample.c
+)
+
+target_include_directories(nubila PUBLIC
+  plugin
+  ${SP}
+  ${SPEEX}/include
+  ${SPEEX}/include/speex
+  ${SPEEX}/libspeexdsp
+  dpf-widgets/opengl
+)
+
+# TEST keeps stmlib/clouds off the STM32-specific code paths (same define the
+# firmware's own desktop test harness uses). -Wno-narrowing: the firmware
+# brace-initializes bools from 0.0f, an error on modern GCC.
+target_compile_definitions(nubila PUBLIC TEST)
+target_compile_options(nubila PUBLIC -Wno-narrowing)
+
+set_source_files_properties(${SPEEX}/libspeexdsp/resample.c PROPERTIES
+  COMPILE_DEFINITIONS "OUTSIDE_SPEEX;FLOATING_POINT;EXPORT=;RANDOM_PREFIX=cloudsvst")
+
+if(MINGW)
+  # Self-contained binaries: no libstdc++/libgcc/winpthread DLL dependencies.
+  foreach(tgt nubila-vst3 nubila-clap)
+    if(TARGET ${tgt})
+      target_link_options(${tgt} PRIVATE -static -static-libgcc -static-libstdc++)
+    endif()
+  endforeach()
+endif()

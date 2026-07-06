@@ -1,0 +1,9 @@
+# Local build artifacts
+build/
+test/*.exe
+
+# Portable Windows toolchain (downloaded, not part of the project)
+tools/
+
+# Legacy stock-Clouds checkout kept for local reference only
+eurorack/

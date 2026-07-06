@@ -1,0 +1,12 @@
+[submodule "dpf"]
+	path = dpf
+	url = https://github.com/DISTRHO/DPF.git
+[submodule "dpf-widgets"]
+	path = dpf-widgets
+	url = https://github.com/DISTRHO/DPF-Widgets.git
+[submodule "speexdsp"]
+	path = speexdsp
+	url = https://github.com/xiph/speexdsp.git
+[submodule "superparasites"]
+	path = superparasites
+	url = https://github.com/patrickdowling/superparasites.git
