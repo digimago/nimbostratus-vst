@@ -25,7 +25,7 @@ jobs:
       - name: Upload plugins
         uses: actions/upload-artifact@v4
         with:
-          name: nubila-macos-universal
+          name: pnt-macos-universal
           path: |
-            build/bin/nubila.vst3
-            build/bin/nubila.clap
+            build/bin/pnt.vst3
+            build/bin/pnt.clap

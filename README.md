@@ -1,10 +1,11 @@
-# Nubila — Clouds / SuperParasites VST3 + CLAP
+# Parasitic Nebulous Textures (PNT)
 
-A 1:1 port of the Mutable Instruments **Clouds** eurorack module — running the
-**SuperParasites** firmware (Clouds + Parasites + Kammerl) — as a VST3 and
-CLAP audio effect, wrapping the unmodified firmware DSP with the
-[DISTRHO Plugin Framework](https://github.com/DISTRHO/DPF) and a Dear ImGui
-interface.
+A granular texture processor in VST3 and CLAP form, based on the excellent
+open-source work of Émilie Gillet — inspired by a certain much-loved cloudy
+eurorack module — running the community SuperParasites firmware DSP (stock +
+Parasites by Matthias Puech + beat repeat by Julian Kammerl), wrapped
+unmodified with the [DISTRHO Plugin Framework](https://github.com/DISTRHO/DPF)
+and a Dear ImGui interface.
 
 The engine runs internally at 32 kHz on int16 frames in 32-sample blocks,
 exactly like the hardware; host audio is resampled with the speexdsp
@@ -40,7 +41,7 @@ PATH="$T/mingw64/bin:$PATH" "$T/cmake-4.3.3-windows-x86_64/bin/cmake.exe" \
 PATH="$T/mingw64/bin:$PATH" "$T/ninja.exe" -C build
 ```
 
-Outputs: `build/bin/nubila.vst3` (bundle) and `build/bin/nubila.clap`.
+Outputs: `build/bin/pnt.vst3` (bundle) and `build/bin/pnt.clap`.
 Install: copy to `%USERPROFILE%\Documents\VST3` (Live custom VST3 folder) or
 `C:\Program Files\Common Files\VST3` (admin).
 
@@ -78,13 +79,19 @@ tools/mingw64/bin/g++.exe -O2 -DTEST -Wno-narrowing -w -I$S \
   SuperParasites/VCV already fixed it.
 - `-Wno-narrowing` needed: the firmware brace-initializes bools from `0.0f`.
 
-"Mutable Instruments" and "Clouds" are trademarks of Émilie Gillet; this is a
-personal build, not for redistribution under those names.
+## Attribution & trademarks
+
+Original DSP by Émilie Gillet (MIT licensed), Parasites extensions by
+Matthias Puech, beat repeat by Julian Kammerl, SuperParasites integration by
+Patrick Dowling; plugin wrapper and UI by Sebastiaan Visser. "Mutable
+Instruments" and the original module names are trademarks of Émilie Gillet
+and are deliberately not used to name or brand this plugin, following
+Mutable Instruments' own open-source guidelines.
 
 ## macOS builds (CI)
 
-Every push builds a universal (arm64 + x86_64) `nubila.vst3` and
-`nubila.clap` on a macOS GitHub Actions runner — see `.github/workflows/build.yml`;
+Every push builds a universal (arm64 + x86_64) `pnt.vst3` and
+`pnt.clap` on a macOS GitHub Actions runner — see `.github/workflows/build.yml`;
 grab them from the workflow run's artifacts. After copying to
 `~/Library/Audio/Plug-Ins/VST3`, clear quarantine if downloaded via browser:
-`xattr -cr ~/Library/Audio/Plug-Ins/VST3/nubila.vst3`.
+`xattr -cr ~/Library/Audio/Plug-Ins/VST3/pnt.vst3`.

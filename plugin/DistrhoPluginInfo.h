@@ -4,10 +4,10 @@
 #ifndef DISTRHO_PLUGIN_INFO_H_INCLUDED
 #define DISTRHO_PLUGIN_INFO_H_INCLUDED
 
-// Display name is "Nubila"; internal ids keep the original "clouds" values so
+// Display name only; internal ids keep the original "clouds" values so
 // existing host sessions keep resolving to the same plugin.
 #define DISTRHO_PLUGIN_BRAND    "DigiMago"
-#define DISTRHO_PLUGIN_NAME     "Nubila"
+#define DISTRHO_PLUGIN_NAME     "Parasitic Nebulous Textures"
 #define DISTRHO_PLUGIN_URI      "https://github.com/digimago/nimbostratus-vst"
 #define DISTRHO_PLUGIN_CLAP_ID  "nl.digimago.clouds"
 

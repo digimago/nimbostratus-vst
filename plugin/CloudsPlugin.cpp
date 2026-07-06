@@ -84,14 +84,16 @@ public:
     }
 
 protected:
-    const char* getLabel() const override       { return "Nubila"; }
+    const char* getLabel() const override       { return "PNT"; }
     const char* getDescription() const override
     {
-        return "Granular texture synthesizer. 1:1 port of the SuperParasites firmware "
-               "(Clouds + Parasites + Kammerl): granular, pitch/stretch, looping delay, "
-               "spectral, Oliverb, Resonestor, beat repeat and spectral cloud modes.";
+        return "Parasitic Nebulous Textures: granular texture processor based on the "
+               "excellent open-source work of Emilie Gillet, with community extensions "
+               "by Matthias Puech and Julian Kammerl. Eight playback modes: granular, "
+               "pitch/stretch, looping delay, spectral, Oliverb, Resonestor, beat "
+               "repeat and spectral cloud.";
     }
-    const char* getMaker() const override       { return "DigiMago / Emilie Gillet (DSP)"; }
+    const char* getMaker() const override       { return "DigiMago"; }
     const char* getHomePage() const override    { return "https://github.com/pichenettes/eurorack"; }
     const char* getLicense() const override     { return "MIT"; }
     uint32_t getVersion() const override        { return d_version(1, 2, 0); }

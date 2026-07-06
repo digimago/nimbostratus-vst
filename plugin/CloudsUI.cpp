@@ -105,10 +105,10 @@ protected:
 
         // ------------------------------------------------------ header
         ImGui::PushFont(nullptr);
-        ImGui::TextColored(ImVec4(0.95f, 0.93f, 0.88f, 1.0f), "N U B I L A");
+        ImGui::TextColored(ImVec4(0.95f, 0.93f, 0.88f, 1.0f), "P N T");
         ImGui::PopFont();
         ImGui::SameLine();
-        ImGui::TextColored(ImVec4(0.45f, 0.75f, 0.78f, 1.0f), " Clouds / SuperParasites");
+        ImGui::TextColored(ImVec4(0.45f, 0.75f, 0.78f, 1.0f), " Parasitic Nebulous Textures");
         ImGui::SameLine(width - 250.0f * s);
         ImGui::SetNextItemWidth(240.0f * s);
         int quality = static_cast<int>(values_[kParamQuality] + 0.5f);
@@ -196,6 +196,11 @@ protected:
         knob(kParamSlice, "Slice", 0.0f, 1.0f, smallKnob, "%.2f");
         if (mode != 6)
             ImGui::EndDisabled();
+
+        ImGui::Spacing();
+        ImGui::TextColored(ImVec4(0.40f, 0.40f, 0.40f, 1.0f),
+            "Based on the excellent open-source work of Emilie Gillet - "
+            "with community extensions by Matthias Puech & Julian Kammerl");
 
         ImGui::End();
     }

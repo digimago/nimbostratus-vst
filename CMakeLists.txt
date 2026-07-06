@@ -9,7 +9,7 @@ add_subdirectory(dpf)
 set(SP ${CMAKE_CURRENT_SOURCE_DIR}/superparasites)
 set(SPEEX ${CMAKE_CURRENT_SOURCE_DIR}/speexdsp)
 
-dpf_add_plugin(nubila
+dpf_add_plugin(pnt
   TARGETS vst3 clap
   UI_TYPE opengl
   FILES_UI
@@ -32,7 +32,7 @@ dpf_add_plugin(nubila
     ${SPEEX}/libspeexdsp/resample.c
 )
 
-target_include_directories(nubila PUBLIC
+target_include_directories(pnt PUBLIC
   plugin
   ${SP}
   ${SPEEX}/include
@@ -44,15 +44,15 @@ target_include_directories(nubila PUBLIC
 # TEST keeps stmlib/clouds off the STM32-specific code paths (same define the
 # firmware's own desktop test harness uses). -Wno-narrowing: the firmware
 # brace-initializes bools from 0.0f, an error on modern GCC.
-target_compile_definitions(nubila PUBLIC TEST)
-target_compile_options(nubila PUBLIC -Wno-narrowing)
+target_compile_definitions(pnt PUBLIC TEST)
+target_compile_options(pnt PUBLIC -Wno-narrowing)
 
 set_source_files_properties(${SPEEX}/libspeexdsp/resample.c PROPERTIES
   COMPILE_DEFINITIONS "OUTSIDE_SPEEX;FLOATING_POINT;EXPORT=;RANDOM_PREFIX=cloudsvst")
 
 if(MINGW)
   # Self-contained binaries: no libstdc++/libgcc/winpthread DLL dependencies.
-  foreach(tgt nubila-vst3 nubila-clap)
+  foreach(tgt pnt-vst3 pnt-clap)
     if(TARGET ${tgt})
       target_link_options(${tgt} PRIVATE -static -static-libgcc -static-libstdc++)
     endif()
