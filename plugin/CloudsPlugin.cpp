@@ -67,6 +67,8 @@ public:
         values_[kParamReverse]  = 0.0f;
         values_[kParamSlice]    = 0.0f;
         values_[kParamSync]     = 0.0f;
+        values_[kParamActivity] = 0.0f;
+        activityBlocks_ = 0;
 
         beatPos_ = 0.0;
         bpm_ = 120.0;
@@ -226,6 +228,12 @@ protected:
             parameter.symbol = "sync";
             parameter.ranges.def = 0.0f; parameter.ranges.min = 0.0f; parameter.ranges.max = 1.0f;
             break;
+        case kParamActivity:
+            parameter.hints = kParameterIsOutput | kParameterIsBoolean;
+            parameter.name = "Trigger Activity";
+            parameter.symbol = "trig_activity";
+            parameter.ranges.def = 0.0f; parameter.ranges.min = 0.0f; parameter.ranges.max = 1.0f;
+            break;
         }
     }
 
@@ -236,7 +244,7 @@ protected:
 
     void setParameterValue(uint32_t index, float value) override
     {
-        if (index < kParamCount)
+        if (index < kParamCount && index != kParamActivity)
             values_[index] = value;
     }
 
@@ -247,6 +255,8 @@ protected:
         fifoHostOut_.clear();
         prevGate_ = false;
         lastDivIndex_ = INT64_MIN;
+        activityBlocks_ = 0;
+        values_[kParamActivity] = 0.0f;
 
         if (srIn_ != nullptr)
             speex_resampler_reset_mem(srIn_);
@@ -354,7 +364,13 @@ protected:
             }
             beatPos_ += beatsPerCloudsBlock;
 
-            applyParameters(syncTrigger);
+            const bool captured = applyParameters(syncTrigger);
+            if (captured)
+                activityBlocks_ = 96; // ~96 ms flash at 32 kHz block rate
+            else if (activityBlocks_ > 0)
+                --activityBlocks_;
+            values_[kParamActivity] = activityBlocks_ > 0 ? 1.0f : 0.0f;
+
             processor_.Process(in, out, kBlock);
             processor_.Prepare();
 
@@ -413,7 +429,7 @@ private:
         return static_cast<int16_t>(y);
     }
 
-    void applyParameters(const bool syncTrigger)
+    bool applyParameters(const bool syncTrigger)
     {
         processor_.set_playback_mode(static_cast<clouds::PlaybackMode>(
             static_cast<int>(values_[kParamMode] + 0.5f)));
@@ -457,6 +473,7 @@ private:
         p->capture = (gate && !prevGate_) || syncTrigger;
         p->gate    = gate;
         prevGate_  = gate;
+        return p->capture;
     }
 
     void createResamplers()
@@ -500,6 +517,7 @@ private:
     double bpm_;
     double beatsPerBar_;
     int64_t lastDivIndex_;
+    int32_t activityBlocks_;
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CloudsPlugin)
 };

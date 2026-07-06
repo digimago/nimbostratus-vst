@@ -58,6 +58,105 @@ static const char* const kQualityNames[4] = {
     "8-bit u-law Stereo (4s)", "8-bit u-law Mono (8s)"
 };
 
+// Per-mode tooltips for the 9 continuous knobs, same order as kKnobLabels.
+static const char* const kKnobTips[8][9] = {
+    { // Granular
+      "Playback position in the recording buffer: left = now, right = further back in time",
+      "Grain size, from tiny shards to about one second",
+      "Grain transposition in semitones",
+      "How grains fire: center = silence, right = increasingly dense random grains, left = evenly clocked grains",
+      "Grain window shape: percussive to smooth; fully right adds diffusion",
+      "Dry/wet balance",
+      "Random stereo panning of individual grains",
+      "Feeds output back into the buffer; self-oscillates near max",
+      "Reverb amount" },
+    { // Pitch/Stretch
+      "Playback position in the buffer",
+      "Time-stretch window size",
+      "Transposition in semitones, time-independent",
+      "Diffuser amount, smears transients",
+      "Filter tilt: low-pass left, high-pass right",
+      "Dry/wet balance",
+      "Stereo image width",
+      "Feedback into the buffer",
+      "Reverb amount" },
+    { // Looping Delay
+      "Delay tap position / loop start",
+      "Loop length",
+      "Playback transposition in semitones",
+      "Granulation of the loop content",
+      "Filter tilt: low-pass left, high-pass right",
+      "Dry/wet balance",
+      "Stereo spread",
+      "Delay regeneration; runaway near max",
+      "Reverb amount" },
+    { // Spectral
+      "Position in the spectral buffer",
+      "Spectral warp: shifts the magnitude spectrum non-linearly",
+      "Transposition in semitones",
+      "Spectrum refresh rate: low values smear and freeze",
+      "Quantizes spectral magnitudes for robotic, metallic textures",
+      "Dry/wet balance",
+      "Stereo spread",
+      "Feedback amount",
+      "Reverb amount" },
+    { // Oliverb
+      "Pre-delay before the reverb onset",
+      "Room size",
+      "Pitch shift inside the reverb tail (shimmer)",
+      "Reverb decay time",
+      "Damping filter: low-pass left, high-pass right",
+      "Dry/wet balance",
+      "Diffusion of the early reflections",
+      "Modulation rate of the reverb lines",
+      "Modulation depth of the reverb lines" },
+    { // Resonestor
+      "Excitation burst character: damping, comb and duration",
+      "Chord selection for the resonator voices",
+      "Root pitch of the resonators in semitones",
+      "Resonator decay time",
+      "Damping/narrowness of the resonator filter",
+      "Distortion of the resonator output",
+      "Left = voice separation, right = stereo width",
+      "Harmonicity: pure partials left, detuned right",
+      "Spread amount across voices" },
+    { // Beat Repeat
+      "Position within the recording buffer",
+      "Length of the repeated slice",
+      "Slice playback pitch",
+      "Modulates repeat length from cycle to cycle",
+      "How the repeated slice steps between cycles; max = random jumps",
+      "Probability that a repeat engages on each trigger",
+      "Divides the incoming trigger clock",
+      "Pitch behavior of repeats: constant, ramp down, stutter...",
+      "Distortion amount on the repeats" },
+    { // Spectral Cloud
+      "Band gate threshold: left mutes more quiet spectral bands",
+      "Spectral warp of the magnitude spectrum",
+      "Transposition in semitones",
+      "Smooths spectral changes over time; high = frozen wash",
+      "Spectral texture amount",
+      "Dry/wet balance",
+      "Stereo spread",
+      "Warm distortion amount",
+      "Reverb amount" }
+};
+
+static const char* const kSyncedDensityTip =
+    "Trigger clock divider (tempo-synced). Steps through 4 bars .. 1/32";
+static const char* const kSliceTip =
+    "Selects which of the 8 recorded slices gets repeated. Active in Beat Repeat mode only";
+static const char* const kFreezeTip =
+    "Stops recording and loops the current buffer contents";
+static const char* const kReverseTip =
+    "Plays grains and loops backwards (granular / looping modes)";
+static const char* const kSyncTip =
+    "Locks the trigger clock to the host tempo; Density becomes the clock divider";
+static const char* const kTrigTip =
+    "Manual trigger: fires a grain, excitation or repeat. Flashes on every trigger, including synced ones";
+static const char* const kQualityTip =
+    "Buffer quality vs. length: mono and 8-bit u-law extend recording time and add vintage grit";
+
 class CloudsUI : public UI
 {
 public:
@@ -118,6 +217,7 @@ protected:
         int quality = static_cast<int>(values_[kParamQuality] + 0.5f);
         if (ImGui::Combo("##quality", &quality, kQualityNames, 4))
             setIntParameter(kParamQuality, quality);
+        ImGui::SetItemTooltip("%s", kQualityTip);
 
         ImGui::Spacing();
 
@@ -134,6 +234,7 @@ protected:
             }
             if (ImGui::Button(kModeNames[m], ImVec2(86.0f * s, 26.0f * s)))
                 setIntParameter(kParamMode, m);
+            ImGui::SetItemTooltip("%s", kModeHints[m]);
             if (active)
                 ImGui::PopStyleColor(2);
         }
@@ -145,24 +246,33 @@ protected:
 
         // --------------------------------------------------- main knobs
         const float bigKnob = 78.0f * s;
-        knob(kParamPosition, kKnobLabels[mode][0], 0.0f, 1.0f, bigKnob, "%.2f");
+        knob(kParamPosition, kKnobLabels[mode][0], 0.0f, 1.0f, bigKnob, "%.2f",
+             false, kKnobTips[mode][0]);
         ImGui::SameLine();
-        knob(kParamSize, kKnobLabels[mode][1], 0.0f, 1.0f, bigKnob, "%.2f");
+        knob(kParamSize, kKnobLabels[mode][1], 0.0f, 1.0f, bigKnob, "%.2f",
+             false, kKnobTips[mode][1]);
         ImGui::SameLine();
         knob(kParamPitch, kKnobLabels[mode][2], -24.0f, 24.0f, bigKnob, "%.2f st",
-             /*withInput*/ true); // drag or ctrl+click the field for exact tuning
+             /*withInput*/ true, kKnobTips[mode][2]);
         ImGui::SameLine();
-        // While synced, Density is the trigger clock divider; show the
-        // musical division as its label.
+        // While synced, Density is the trigger clock divider: a stepped knob
+        // that clicks through the divisions, labeled with the active one.
         const bool sync = values_[kParamSync] > 0.5f;
-        char densityLabel[24];
         if (sync)
+        {
+            char densityLabel[24];
             std::snprintf(densityLabel, sizeof(densityLabel), "Rate %s",
                           kSyncDivLabels[syncDivIndex(values_[kParamDensity])]);
-        knob(kParamDensity, sync ? densityLabel : kKnobLabels[mode][3],
-             0.0f, 1.0f, bigKnob, "%.2f");
+            steppedRateKnob(densityLabel, bigKnob);
+        }
+        else
+        {
+            knob(kParamDensity, kKnobLabels[mode][3], 0.0f, 1.0f, bigKnob,
+                 "%.2f", false, kKnobTips[mode][3]);
+        }
         ImGui::SameLine();
-        knob(kParamTexture, kKnobLabels[mode][4], 0.0f, 1.0f, bigKnob, "%.2f");
+        knob(kParamTexture, kKnobLabels[mode][4], 0.0f, 1.0f, bigKnob, "%.2f",
+             false, kKnobTips[mode][4]);
 
         ImGui::SameLine(0.0f, 30.0f * s);
 
@@ -174,15 +284,22 @@ protected:
         const bool freeze = values_[kParamFreeze] > 0.5f;
         if (toggleButton("FREEZE", freeze, buttonSize))
             setBoolParameter(kParamFreeze, !freeze);
+        ImGui::SetItemTooltip("%s", kFreezeTip);
 
         const bool reverse = values_[kParamReverse] > 0.5f;
         if (toggleButton("REVERSE", reverse, buttonSize))
             setBoolParameter(kParamReverse, !reverse);
+        ImGui::SetItemTooltip("%s", kReverseTip);
 
         if (toggleButton("SYNC", sync, buttonSize))
             setBoolParameter(kParamSync, !sync);
+        ImGui::SetItemTooltip("%s", kSyncTip);
 
-        ImGui::Button("TRIG", buttonSize);
+        // Lit while held, and flashes on every trigger fired by the engine
+        // (reported through the Trigger Activity output parameter).
+        const bool trigLit = triggerHeld_ || values_[kParamActivity] > 0.5f;
+        toggleButton("TRIG", trigLit, buttonSize);
+        ImGui::SetItemTooltip("%s", kTrigTip);
         const bool trigNow = ImGui::IsItemActive();
         if (trigNow != triggerHeld_)
         {
@@ -198,17 +315,22 @@ protected:
 
         // -------------------------------------------------- blend knobs
         const float smallKnob = 58.0f * s;
-        knob(kParamDryWet, kKnobLabels[mode][5], 0.0f, 1.0f, smallKnob, "%.2f");
+        knob(kParamDryWet, kKnobLabels[mode][5], 0.0f, 1.0f, smallKnob, "%.2f",
+             false, kKnobTips[mode][5]);
         ImGui::SameLine();
-        knob(kParamSpread, kKnobLabels[mode][6], 0.0f, 1.0f, smallKnob, "%.2f");
+        knob(kParamSpread, kKnobLabels[mode][6], 0.0f, 1.0f, smallKnob, "%.2f",
+             false, kKnobTips[mode][6]);
         ImGui::SameLine();
-        knob(kParamFeedback, kKnobLabels[mode][7], 0.0f, 1.0f, smallKnob, "%.2f");
+        knob(kParamFeedback, kKnobLabels[mode][7], 0.0f, 1.0f, smallKnob, "%.2f",
+             false, kKnobTips[mode][7]);
         ImGui::SameLine();
-        knob(kParamReverb, kKnobLabels[mode][8], 0.0f, 1.0f, smallKnob, "%.2f");
+        knob(kParamReverb, kKnobLabels[mode][8], 0.0f, 1.0f, smallKnob, "%.2f",
+             false, kKnobTips[mode][8]);
         ImGui::SameLine(0.0f, 30.0f * s);
         if (mode != 6)
             ImGui::BeginDisabled();
-        knob(kParamSlice, "Slice", 0.0f, 1.0f, smallKnob, "%.2f");
+        knob(kParamSlice, "Slice", 0.0f, 1.0f, smallKnob, "%.2f",
+             false, kSliceTip);
         if (mode != 6)
             ImGui::EndDisabled();
 
@@ -223,7 +345,7 @@ protected:
 private:
     void knob(uint32_t index, const char* label,
               float vmin, float vmax, float size, const char* fmt,
-              bool withInput = false)
+              bool withInput = false, const char* tipText = nullptr)
     {
         float value = values_[index];
         // The widget draws the label verbatim, so keep it clean and use an
@@ -239,6 +361,8 @@ private:
             values_[index] = value;
             setParameterValue(index, value);
         }
+        if (tipText != nullptr)
+            ImGui::SetItemTooltip("%s", tipText);
         if (ImGui::IsItemDeactivated())
             editParameter(index, false);
         // Double-click resets to default.
@@ -253,6 +377,29 @@ private:
             setParameterValue(index, def);
             editParameter(index, false);
         }
+        ImGui::PopID();
+    }
+
+    // Density while tempo-synced: a stepped knob that clicks through the
+    // clock divisions directly instead of sweeping a continuous range.
+    void steppedRateKnob(const char* label, float size)
+    {
+        int idx = syncDivIndex(values_[kParamDensity]);
+        ImGui::PushID(static_cast<int>(kParamDensity));
+        if (ImGuiKnobs::KnobInt(label, &idx, 0, kNumSyncDivisions - 1,
+                                0.1f, "", ImGuiKnobVariant_Stepped, size,
+                                ImGuiKnobFlags_NoInput, kNumSyncDivisions))
+        {
+            if (ImGui::IsItemActivated())
+                editParameter(kParamDensity, true);
+            const float v = static_cast<float>(idx)
+                          / static_cast<float>(kNumSyncDivisions - 1);
+            values_[kParamDensity] = v;
+            setParameterValue(kParamDensity, v);
+        }
+        ImGui::SetItemTooltip("%s", kSyncedDensityTip);
+        if (ImGui::IsItemDeactivated())
+            editParameter(kParamDensity, false);
         ImGui::PopID();
     }
 

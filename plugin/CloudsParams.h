@@ -20,6 +20,7 @@ enum ParamId {
     kParamReverse,
     kParamSlice,
     kParamSync,
+    kParamActivity,  // output-only: lights the TRIG button on every trigger
     kParamCount
 };
 
