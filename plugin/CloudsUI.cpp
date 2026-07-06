@@ -62,12 +62,14 @@ public:
         : UI(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT),
           triggerHeld_(false)
     {
+        // Fixed-size window; hi-DPI comes only from the host/OS scale factor.
+        // The ImGuiWidget wrapper already scales fonts and style metrics by
+        // getScaleFactor(), so layout code multiplies its own pixel sizes by
+        // the same factor and must not add any scaling on top.
         const double scaleFactor = getScaleFactor();
         if (d_isNotEqual(scaleFactor, 1.0))
             setSize(DISTRHO_UI_DEFAULT_WIDTH * scaleFactor,
                     DISTRHO_UI_DEFAULT_HEIGHT * scaleFactor);
-        setGeometryConstraints(DISTRHO_UI_DEFAULT_WIDTH * scaleFactor,
-                               DISTRHO_UI_DEFAULT_HEIGHT * scaleFactor, true);
 
         std::memset(values_, 0, sizeof(values_));
         values_[kParamPosition] = 0.5f;
@@ -76,7 +78,7 @@ public:
         values_[kParamTexture]  = 0.5f;
         values_[kParamDryWet]   = 0.5f;
 
-        setupStyle();
+        setupStyle(static_cast<float>(scaleFactor));
     }
 
 protected:
@@ -91,11 +93,10 @@ protected:
     {
         const float width  = getWidth();
         const float height = getHeight();
-        const float s = width / static_cast<float>(DISTRHO_UI_DEFAULT_WIDTH);
+        const float s = static_cast<float>(getScaleFactor());
 
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(ImVec2(width, height));
-        ImGui::GetIO().FontGlobalScale = s;
 
         ImGui::Begin("Clouds", nullptr,
                      ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
@@ -272,14 +273,14 @@ private:
         editParameter(index, false);
     }
 
-    static void setupStyle()
+    static void setupStyle(const float s)
     {
         ImGuiStyle& st = ImGui::GetStyle();
         st.WindowRounding = 0.0f;
-        st.FrameRounding = 4.0f;
-        st.GrabRounding = 4.0f;
-        st.WindowPadding = ImVec2(14, 10);
-        st.ItemSpacing = ImVec2(10, 8);
+        st.FrameRounding = 4.0f * s;
+        st.GrabRounding = 4.0f * s;
+        st.WindowPadding = ImVec2(14 * s, 10 * s);
+        st.ItemSpacing = ImVec2(10 * s, 8 * s);
 
         ImVec4* c = st.Colors;
         c[ImGuiCol_WindowBg]      = ImVec4(0.09f, 0.10f, 0.11f, 1.00f);
