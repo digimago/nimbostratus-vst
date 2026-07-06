@@ -105,10 +105,10 @@ protected:
 
         // ------------------------------------------------------ header
         ImGui::PushFont(nullptr);
-        ImGui::TextColored(ImVec4(0.95f, 0.93f, 0.88f, 1.0f), "P N T");
+        ImGui::TextColored(ImVec4(0.95f, 0.93f, 0.88f, 1.0f), "N I M B O S T R A T U S");
         ImGui::PopFont();
         ImGui::SameLine();
-        ImGui::TextColored(ImVec4(0.45f, 0.75f, 0.78f, 1.0f), " Parasitic Nebulous Textures");
+        ImGui::TextColored(ImVec4(0.45f, 0.75f, 0.78f, 1.0f), " granular texture processor");
         ImGui::SameLine(width - 250.0f * s);
         ImGui::SetNextItemWidth(240.0f * s);
         int quality = static_cast<int>(values_[kParamQuality] + 0.5f);

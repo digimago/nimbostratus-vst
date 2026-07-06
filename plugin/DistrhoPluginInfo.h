@@ -7,7 +7,7 @@
 // Display name only; internal ids keep the original "clouds" values so
 // existing host sessions keep resolving to the same plugin.
 #define DISTRHO_PLUGIN_BRAND    "DigiMago"
-#define DISTRHO_PLUGIN_NAME     "Parasitic Nebulous Textures"
+#define DISTRHO_PLUGIN_NAME     "Nimbostratus"
 #define DISTRHO_PLUGIN_URI      "https://github.com/digimago/nimbostratus-vst"
 #define DISTRHO_PLUGIN_CLAP_ID  "nl.digimago.clouds"
 

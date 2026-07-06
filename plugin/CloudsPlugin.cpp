@@ -84,10 +84,10 @@ public:
     }
 
 protected:
-    const char* getLabel() const override       { return "PNT"; }
+    const char* getLabel() const override       { return "Nimbostratus"; }
     const char* getDescription() const override
     {
-        return "Parasitic Nebulous Textures: granular texture processor based on the "
+        return "Nimbostratus: granular texture processor based on the "
                "excellent open-source work of Emilie Gillet, with community extensions "
                "by Matthias Puech and Julian Kammerl. Eight playback modes: granular, "
                "pitch/stretch, looping delay, spectral, Oliverb, Resonestor, beat "

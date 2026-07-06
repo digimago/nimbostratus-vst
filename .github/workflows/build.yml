@@ -25,7 +25,7 @@ jobs:
       - name: Upload plugins
         uses: actions/upload-artifact@v4
         with:
-          name: pnt-macos-universal
+          name: nimbostratus-macos-universal
           path: |
-            build/bin/pnt.vst3
-            build/bin/pnt.clap
+            build/bin/nimbostratus.vst3
+            build/bin/nimbostratus.clap

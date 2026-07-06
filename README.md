@@ -1,4 +1,4 @@
-# Parasitic Nebulous Textures (PNT)
+# Nimbostratus
 
 A granular texture processor in VST3 and CLAP form, based on the excellent
 open-source work of Émilie Gillet — inspired by a certain much-loved cloudy
@@ -41,7 +41,7 @@ PATH="$T/mingw64/bin:$PATH" "$T/cmake-4.3.3-windows-x86_64/bin/cmake.exe" \
 PATH="$T/mingw64/bin:$PATH" "$T/ninja.exe" -C build
 ```
 
-Outputs: `build/bin/pnt.vst3` (bundle) and `build/bin/pnt.clap`.
+Outputs: `build/bin/nimbostratus.vst3` (bundle) and `build/bin/nimbostratus.clap`.
 Install: copy to `%USERPROFILE%\Documents\VST3` (Live custom VST3 folder) or
 `C:\Program Files\Common Files\VST3` (admin).
 
@@ -90,8 +90,8 @@ Mutable Instruments' own open-source guidelines.
 
 ## macOS builds (CI)
 
-Every push builds a universal (arm64 + x86_64) `pnt.vst3` and
-`pnt.clap` on a macOS GitHub Actions runner — see `.github/workflows/build.yml`;
+Every push builds a universal (arm64 + x86_64) `nimbostratus.vst3` and
+`nimbostratus.clap` on a macOS GitHub Actions runner — see `.github/workflows/build.yml`;
 grab them from the workflow run's artifacts. After copying to
 `~/Library/Audio/Plug-Ins/VST3`, clear quarantine if downloaded via browser:
-`xattr -cr ~/Library/Audio/Plug-Ins/VST3/pnt.vst3`.
+`xattr -cr ~/Library/Audio/Plug-Ins/VST3/nimbostratus.vst3`.
