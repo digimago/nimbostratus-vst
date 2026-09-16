@@ -1,27 +1,26 @@
-# Nimbostratus 1.3.3
+# Nimbostratus 1.3.4
 
-Maintenance and housekeeping release. No changes to the audio engine or
-parameters — existing sessions load unchanged. Windows x64 and macOS universal
-builds attached below.
+Bug-fix release. No changes to the audio engine or parameters — existing
+sessions load unchanged. Windows x64 and macOS universal builds attached below.
 
-## Changed
+## Fixed
 
-- **Brand name** shown by the host is now `digimago` (previously `DigiMago`),
-  for consistent branding. Internal plugin identifiers are unchanged, so hosts
-  still resolve existing projects to the same plugin.
+- **macOS: the plugin window no longer swallows the host's keyboard shortcuts.**
+  With the UI open and focused, the spacebar reached the plugin instead of the
+  DAW, so transport start/stop did nothing while you had Nimbostratus in front
+  of you. Key presses the UI does not use are now handed back to the host, so
+  the spacebar and other hotkeys behave as they do with the window closed.
 
-## Added
+  Typing a value still works: the UI holds on to the keyboard only while a
+  numeric entry field is active (ctrl-click the **Pitch** knob).
 
-- Community health files: a **Code of Conduct** (Contributor Covenant 2.1),
-  **Contributing** guidelines covering the build, branch/PR/RC workflow and
-  project conventions, and a **Security Policy** with private vulnerability
-  reporting.
-
-## Privacy
-
-- Removed personal details from the source tree and documentation. Reporting
-  and contact now route through GitHub's private channels rather than a
-  personal address.
+<!-- TODO before tagging 1.3.4 -->
+<!-- Windows is unverified. The framework drops the "key handled" flag on every -->
+<!-- platform and neither the Win32 nor the X11 backend forwards unhandled keys, -->
+<!-- so the same bug is likely present there - but it is untested and unfixed as -->
+<!-- of this draft, and the fix is macOS-only (an Objective-C++ shim). -->
+<!-- Either extend the fix to Win32 and drop the "macOS:" prefix above, or keep -->
+<!-- the prefix and say plainly that Windows is unaffected / still affected. -->
 
 ## Install
 
