@@ -1,4 +1,4 @@
-# Nimbostratus 1.3.4
+# Nimbostratus 1.3.5
 
 Bug-fix release. No changes to the audio engine or parameters — existing
 sessions load unchanged. Windows x64 and macOS universal builds attached below.
