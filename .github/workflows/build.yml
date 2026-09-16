@@ -11,7 +11,7 @@ jobs:
   macos:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -26,7 +26,7 @@ jobs:
         run: cmake --build build --parallel 3
 
       - name: Upload plugins
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nimbostratus-macos-universal
           path: |
@@ -39,7 +39,7 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -59,7 +59,7 @@ jobs:
         run: cmake --build build --parallel 3
 
       - name: Upload plugins
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nimbostratus-windows-x64
           path: |
@@ -73,7 +73,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Verify tag matches project version
         run: |
@@ -86,7 +86,7 @@ jobs:
           fi
           echo "Releasing version $tag"
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           path: artifacts
 
@@ -99,8 +99,13 @@ jobs:
       # Two steps, because this repo has immutable releases turned on: once a
       # release is published its assets are frozen, and the action uploads
       # after publishing. Building it as a draft lets the zips land first.
+      #
+      # For the same reason, never create the release by hand before this runs.
+      # Publishing a release burns the tag name permanently - the tag cannot be
+      # re-pushed and no later release can claim it, even after the release is
+      # deleted. Push the tag and let this job do the rest.
       - name: Stage GitHub Release as a draft
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           body_path: RELEASE_NOTES.md
           generate_release_notes: true
