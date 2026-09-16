@@ -11,11 +11,20 @@ add_subdirectory(dpf)
 set(SP ${CMAKE_CURRENT_SOURCE_DIR}/superparasites)
 set(SPEEX ${CMAKE_CURRENT_SOURCE_DIR}/speexdsp)
 
+# macOS only: an Objective-C++ shim that lets key presses the UI does not use
+# fall through to the host, so the spacebar still drives the DAW transport
+# while the plugin window has focus.
+set(NIMBO_FILES_UI_PLATFORM)
+if(APPLE)
+  set(NIMBO_FILES_UI_PLATFORM plugin/NimbostratusKeyboard.mm)
+endif()
+
 dpf_add_plugin(nimbostratus
   TARGETS vst3 clap
   UI_TYPE opengl
   FILES_UI
     plugin/NimbostratusUI.cpp
+    ${NIMBO_FILES_UI_PLATFORM}
     dpf-widgets/opengl/DearImGui.cpp
   FILES_DSP
     plugin/NimbostratusPlugin.cpp

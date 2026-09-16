@@ -9,6 +9,10 @@
 
 #include "DearImGuiKnobs/imgui-knobs.h"
 
+#ifdef DISTRHO_OS_MAC
+# include "NimbostratusKeyboard.h"
+#endif
+
 #include <cstdio>
 #include <cstring>
 
@@ -340,6 +344,14 @@ protected:
             "with community extensions by Matthias Puech & Julian Kammerl");
 
         ImGui::End();
+
+       #ifdef DISTRHO_OS_MAC
+        // Keep the host's key commands working while the window is open: only
+        // hold on to the keyboard while a value is actually being typed into
+        // the UI, otherwise the spacebar would never reach the DAW's transport.
+        nimboSetKeyboardCapture(getWindow().getNativeWindowHandle(),
+                                ImGui::GetIO().WantTextInput);
+       #endif
     }
 
 private:
