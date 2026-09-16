@@ -103,9 +103,9 @@ void ensurePatched(NSView* const view)
 
 } // namespace
 
-void nimboSetKeyboardCapture(const uintptr_t nativeView, const bool capture)
+void nimboSetKeyboardCapture(const uintptr_t nativeWindow, const bool capture)
 {
-    NSView* const view = (NSView*)nativeView;
+    NSView* const view = (NSView*)nativeWindow;
     if (view == nil)
         return;
 
@@ -115,4 +115,14 @@ void nimboSetKeyboardCapture(const uintptr_t nativeView, const bool capture)
         objc_setAssociatedObject(view, &kCaptureKey,
                                  capture ? @YES : @NO,
                                  OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+void nimboReleaseKeyboard(const uintptr_t nativeWindow)
+{
+    NSView* const view = (NSView*)nativeWindow;
+    if (view == nil || object_getClass(view) != sPassthroughClass)
+        return;
+
+    objc_setAssociatedObject(view, &kCaptureKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    object_setClass(view, sBaseClass);
 }

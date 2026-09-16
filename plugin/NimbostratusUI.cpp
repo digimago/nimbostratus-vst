@@ -9,7 +9,8 @@
 
 #include "DearImGuiKnobs/imgui-knobs.h"
 
-#ifdef DISTRHO_OS_MAC
+#if defined(DISTRHO_OS_MAC) || defined(DISTRHO_OS_WINDOWS)
+# define NIMBO_KEY_PASSTHROUGH 1
 # include "NimbostratusKeyboard.h"
 #endif
 
@@ -187,6 +188,14 @@ public:
         setupStyle(static_cast<float>(scaleFactor));
     }
 
+   #ifdef NIMBO_KEY_PASSTHROUGH
+    ~NimbostratusUI() override
+    {
+        // The window outlives the widget, so its handle is still good here.
+        nimboReleaseKeyboard(getWindow().getNativeWindowHandle());
+    }
+   #endif
+
 protected:
     void parameterChanged(uint32_t index, float value) override
     {
@@ -345,7 +354,7 @@ protected:
 
         ImGui::End();
 
-       #ifdef DISTRHO_OS_MAC
+       #ifdef NIMBO_KEY_PASSTHROUGH
         // Keep the host's key commands working while the window is open: only
         // hold on to the keyboard while a value is actually being typed into
         // the UI, otherwise the spacebar would never reach the DAW's transport.

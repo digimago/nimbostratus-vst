@@ -11,12 +11,14 @@ add_subdirectory(dpf)
 set(SP ${CMAKE_CURRENT_SOURCE_DIR}/superparasites)
 set(SPEEX ${CMAKE_CURRENT_SOURCE_DIR}/speexdsp)
 
-# macOS only: an Objective-C++ shim that lets key presses the UI does not use
-# fall through to the host, so the spacebar still drives the DAW transport
-# while the plugin window has focus.
+# Platform shims that let key presses the UI does not use fall through to the
+# host, so the spacebar still drives the DAW transport while the plugin window
+# has focus. Neither windowing backend offers unhandled keys back on its own.
 set(NIMBO_FILES_UI_PLATFORM)
 if(APPLE)
-  set(NIMBO_FILES_UI_PLATFORM plugin/NimbostratusKeyboard.mm)
+  set(NIMBO_FILES_UI_PLATFORM plugin/NimbostratusKeyboardMac.mm)
+elseif(WIN32)
+  set(NIMBO_FILES_UI_PLATFORM plugin/NimbostratusKeyboardWin.cpp)
 endif()
 
 dpf_add_plugin(nimbostratus
