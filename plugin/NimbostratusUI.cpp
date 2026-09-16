@@ -9,6 +9,11 @@
 
 #include "DearImGuiKnobs/imgui-knobs.h"
 
+#if defined(DISTRHO_OS_MAC) || defined(DISTRHO_OS_WINDOWS)
+# define NIMBO_KEY_PASSTHROUGH 1
+# include "NimbostratusKeyboard.h"
+#endif
+
 #include <cstdio>
 #include <cstring>
 
@@ -183,7 +188,31 @@ public:
         setupStyle(static_cast<float>(scaleFactor));
     }
 
+   #ifdef NIMBO_KEY_PASSTHROUGH
+    ~NimbostratusUI() override
+    {
+        // The window outlives the widget, so its handle is still good here.
+        nimboReleaseKeyboard(getWindow().getNativeWindowHandle());
+    }
+   #endif
+
 protected:
+    // Keys can reach a plugin two ways: through the host's plugin API, or
+    // straight to the native window. This is the plugin-API route, and what
+    // it returns tells the host whether the key was used - a host that is
+    // told yes keeps its own shortcuts to itself.
+    //
+    // The base implementation answers with io.WantCaptureKeyboard, which is
+    // broader than this UI needs. Feed the key to Dear ImGui either way, but
+    // only claim it while a value is actually being typed, matching what the
+    // native hook does on the other route.
+    bool onKeyboard(const KeyboardEvent& ev) override
+    {
+        const bool used = UI::onKeyboard(ev);
+
+        return used && ImGui::GetIO().WantTextInput;
+    }
+
     void parameterChanged(uint32_t index, float value) override
     {
         if (index < kParamCount)
@@ -339,7 +368,26 @@ protected:
             "Based on the excellent open-source work of Emilie Gillet - "
             "with community extensions by Matthias Puech & Julian Kammerl");
 
+        // Version, right-aligned on the credit line. That row is the last
+        // thing in the window and the height has to leave room for it - it
+        // used to start below the bottom edge, which hid the credits too.
+        char version[24];
+        std::snprintf(version, sizeof(version), "v%d.%d.%d",
+                      NIMBO_VERSION_MAJOR, NIMBO_VERSION_MINOR,
+                      NIMBO_VERSION_PATCH);
+        ImGui::SameLine(width - ImGui::CalcTextSize(version).x
+                              - ImGui::GetStyle().WindowPadding.x);
+        ImGui::TextColored(ImVec4(0.40f, 0.40f, 0.40f, 1.0f), "%s", version);
+
         ImGui::End();
+
+       #ifdef NIMBO_KEY_PASSTHROUGH
+        // Keep the host's key commands working while the window is open: only
+        // hold on to the keyboard while a value is actually being typed into
+        // the UI, otherwise the spacebar would never reach the DAW's transport.
+        nimboSetKeyboardCapture(getWindow().getNativeWindowHandle(),
+                                ImGui::GetIO().WantTextInput);
+       #endif
     }
 
 private:

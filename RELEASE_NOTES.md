@@ -1,27 +1,28 @@
-# Nimbostratus 1.3.3
+# Nimbostratus 1.3.4
 
-Maintenance and housekeeping release. No changes to the audio engine or
-parameters — existing sessions load unchanged. Windows x64 and macOS universal
-builds attached below.
+Bug-fix release. No changes to the audio engine or parameters — existing
+sessions load unchanged. Windows x64 and macOS universal builds attached below.
 
-## Changed
+## Fixed
 
-- **Brand name** shown by the host is now `digimago` (previously `DigiMago`),
-  for consistent branding. Internal plugin identifiers are unchanged, so hosts
-  still resolve existing projects to the same plugin.
+- **The plugin window no longer swallows the host's keyboard shortcuts.** With
+  the UI open and focused, the spacebar reached the plugin instead of the DAW,
+  so transport start/stop did nothing while you had Nimbostratus in front of
+  you. Key presses the UI does not use are now handed back to the host, so the
+  spacebar and other hotkeys behave as they do with the window closed. Both
+  macOS and Windows were affected; both are fixed.
+
+  Typing a value still works: the UI keeps the keyboard only while a numeric
+  entry field is active (ctrl-click the **Pitch** knob).
+
+- **The credit line at the bottom of the window is visible again.** It sat
+  just below the bottom edge and had never actually been drawn. The window is
+  25px taller to make room for it.
 
 ## Added
 
-- Community health files: a **Code of Conduct** (Contributor Covenant 2.1),
-  **Contributing** guidelines covering the build, branch/PR/RC workflow and
-  project conventions, and a **Security Policy** with private vulnerability
-  reporting.
-
-## Privacy
-
-- Removed personal details from the source tree and documentation. Reporting
-  and contact now route through GitHub's private channels rather than a
-  personal address.
+- **The plugin version is shown in the bottom-right corner of the window**, so
+  it is clear at a glance which build a session is running.
 
 ## Install
 

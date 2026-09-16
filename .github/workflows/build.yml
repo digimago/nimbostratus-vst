@@ -96,10 +96,22 @@ jobs:
           (cd artifacts/nimbostratus-windows-x64 && zip -qr "$GITHUB_WORKSPACE/nimbostratus-$GITHUB_REF_NAME-windows-x64.zip" .)
           ls -la *.zip
 
-      - name: Publish GitHub Release
+      # Two steps, because this repo has immutable releases turned on: once a
+      # release is published its assets are frozen, and the action uploads
+      # after publishing. Building it as a draft lets the zips land first.
+      - name: Stage GitHub Release as a draft
         uses: softprops/action-gh-release@v2
         with:
           body_path: RELEASE_NOTES.md
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
+          draft: true
           files: nimbostratus-*.zip
+
+      - name: Publish the draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release edit "$GITHUB_REF_NAME" \
+            --draft=false \
+            --prerelease=${{ contains(github.ref_name, '-') }}

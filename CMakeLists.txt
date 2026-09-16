@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 # Single source of truth for the plugin version; the release workflow
 # verifies the git tag matches this before publishing.
-project(Nimbostratus VERSION 1.3.3 LANGUAGES C CXX)
+project(Nimbostratus VERSION 1.3.4 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -11,11 +11,22 @@ add_subdirectory(dpf)
 set(SP ${CMAKE_CURRENT_SOURCE_DIR}/superparasites)
 set(SPEEX ${CMAKE_CURRENT_SOURCE_DIR}/speexdsp)
 
+# Platform shims that let key presses the UI does not use fall through to the
+# host, so the spacebar still drives the DAW transport while the plugin window
+# has focus. Neither windowing backend offers unhandled keys back on its own.
+set(NIMBO_FILES_UI_PLATFORM)
+if(APPLE)
+  set(NIMBO_FILES_UI_PLATFORM plugin/NimbostratusKeyboardMac.mm)
+elseif(WIN32)
+  set(NIMBO_FILES_UI_PLATFORM plugin/NimbostratusKeyboardWin.cpp)
+endif()
+
 dpf_add_plugin(nimbostratus
   TARGETS vst3 clap
   UI_TYPE opengl
   FILES_UI
     plugin/NimbostratusUI.cpp
+    ${NIMBO_FILES_UI_PLATFORM}
     dpf-widgets/opengl/DearImGui.cpp
   FILES_DSP
     plugin/NimbostratusPlugin.cpp
