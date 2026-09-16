@@ -9,16 +9,23 @@
 // The UI reports once per frame whether Dear ImGui is taking typed input (the
 // pitch knob's numeric entry is the only place that happens). On the first
 // report the plugin's HWND is subclassed; while text input is inactive the key
-// messages are posted to the host's top-level window instead of being handed
-// to pugl. Posting rather than sending puts them back through the host's own
-// message loop, which is where a DAW runs its accelerator table.
+// messages are posted to the host instead of being handed to pugl. Posting
+// rather than sending puts them back through the host's own message loop,
+// which is where a DAW runs its accelerator table.
+//
+// Where to post is the part that is not obvious. A DAW typically floats its
+// plugin editors in their own top-level windows, so GA_ROOT stops at that
+// floating frame rather than the application window that owns the transport
+// shortcuts. GA_ROOTOWNER keeps walking the owner chain and lands on the
+// application window, so that is tried first.
 //
 // WM_CHAR is dropped rather than forwarded: the host's message loop runs
 // TranslateMessage over the WM_KEYDOWN we posted and generates its own.
 //
 // The original window procedure and the capture flag live in window properties
 // rather than in statics, so several open plugin windows cannot tread on each
-// other's state.
+// other's state. The counters are diagnostics, surfaced in the UI - see
+// NimboKeyStats.
 
 // GetAncestor() needs Windows 2000 or later; respect the build's own target if
 // it already picked one.
@@ -28,12 +35,19 @@
 
 #include <windows.h>
 
+#include <cstdio>
+#include <cstring>
+
 #include "NimbostratusKeyboard.h"
 
 namespace {
 
 const char* const kProcProp    = "NimbostratusKeyProc";
 const char* const kCaptureProp = "NimbostratusKeyCapture";
+
+uint32_t gSeen      = 0;
+uint32_t gForwarded = 0;
+uint32_t gLastKey   = 0;
 
 // pugl builds its window with the TCHAR-generic RegisterClassEx, so whether
 // the window is ANSI or Unicode depends on how it was compiled. Ask the window
@@ -60,6 +74,18 @@ bool wantsCapture(HWND hwnd)
     return GetPropA(hwnd, kCaptureProp) != NULL;
 }
 
+// The host window that should get the keys we do not want: the application
+// window, not the floating frame the editor happens to sit in.
+HWND forwardTarget(HWND hwnd)
+{
+    HWND const owner = GetAncestor(hwnd, GA_ROOTOWNER);
+    if (owner != NULL && owner != hwnd)
+        return owner;
+
+    HWND const root = GetAncestor(hwnd, GA_ROOT);
+    return (root != hwnd) ? root : NULL;
+}
+
 LRESULT CALLBACK keyboardProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     WNDPROC const original = (WNDPROC)GetPropA(hwnd, kProcProp);
@@ -73,15 +99,19 @@ LRESULT CALLBACK keyboardProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_SYSKEYDOWN:
     case WM_SYSKEYUP:
     case WM_CHAR:
+        ++gSeen;
+        gLastKey = (uint32_t)wParam;
+
         if (! wantsCapture(hwnd))
         {
-            // Only an embedded view has somewhere to forward to; a top-level
-            // window of our own is already where the key belongs.
-            HWND const root = GetAncestor(hwnd, GA_ROOT);
-            if (root != NULL && root != hwnd)
+            HWND const target = forwardTarget(hwnd);
+            if (target != NULL)
             {
                 if (msg != WM_CHAR)
-                    PostMessage(root, msg, wParam, lParam);
+                {
+                    PostMessage(target, msg, wParam, lParam);
+                    ++gForwarded;
+                }
                 return 0;
             }
         }
@@ -142,4 +172,35 @@ void nimboReleaseKeyboard(const uintptr_t nativeWindow)
     RemovePropA(hwnd, kProcProp);
     RemovePropA(hwnd, kCaptureProp);
     setWindowProc(hwnd, original);
+}
+
+void nimboGetKeyStats(const uintptr_t nativeWindow, NimboKeyStats& stats)
+{
+    HWND const hwnd = (HWND)nativeWindow;
+
+    stats.seen      = gSeen;
+    stats.forwarded = gForwarded;
+    stats.lastKey   = gLastKey;
+    stats.hooked    = hwnd != NULL && IsWindow(hwnd) && GetPropA(hwnd, kProcProp) != NULL;
+
+    if (hwnd == NULL || ! IsWindow(hwnd))
+    {
+        std::strcpy(stats.target, "no window");
+        return;
+    }
+
+    HWND const target = forwardTarget(hwnd);
+    if (target == NULL)
+    {
+        std::strcpy(stats.target, "none (top-level)");
+        return;
+    }
+
+    // Name the window we post to, so a wrong target is recognisable on sight.
+    char cls[48] = {0};
+    GetClassNameA(target, cls, (int)sizeof(cls) - 1);
+    std::snprintf(stats.target, sizeof(stats.target), "%s%s 0x%llx",
+                  cls,
+                  target == GetAncestor(hwnd, GA_ROOTOWNER) ? " (owner)" : " (root)",
+                  (unsigned long long)(uintptr_t)target);
 }
