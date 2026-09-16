@@ -24,8 +24,7 @@
 //
 // The original window procedure and the capture flag live in window properties
 // rather than in statics, so several open plugin windows cannot tread on each
-// other's state. The counters are diagnostics, surfaced in the UI - see
-// NimboKeyStats.
+// other's state.
 
 // GetAncestor() needs Windows 2000 or later; respect the build's own target if
 // it already picked one.
@@ -35,19 +34,12 @@
 
 #include <windows.h>
 
-#include <cstdio>
-#include <cstring>
-
 #include "NimbostratusKeyboard.h"
 
 namespace {
 
 const char* const kProcProp    = "NimbostratusKeyProc";
 const char* const kCaptureProp = "NimbostratusKeyCapture";
-
-uint32_t gSeen      = 0;
-uint32_t gForwarded = 0;
-uint32_t gLastKey   = 0;
 
 // pugl builds its window with the TCHAR-generic RegisterClassEx, so whether
 // the window is ANSI or Unicode depends on how it was compiled. Ask the window
@@ -99,19 +91,13 @@ LRESULT CALLBACK keyboardProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_SYSKEYDOWN:
     case WM_SYSKEYUP:
     case WM_CHAR:
-        ++gSeen;
-        gLastKey = (uint32_t)wParam;
-
         if (! wantsCapture(hwnd))
         {
             HWND const target = forwardTarget(hwnd);
             if (target != NULL)
             {
                 if (msg != WM_CHAR)
-                {
                     PostMessage(target, msg, wParam, lParam);
-                    ++gForwarded;
-                }
                 return 0;
             }
         }
@@ -174,33 +160,3 @@ void nimboReleaseKeyboard(const uintptr_t nativeWindow)
     setWindowProc(hwnd, original);
 }
 
-void nimboGetKeyStats(const uintptr_t nativeWindow, NimboKeyStats& stats)
-{
-    HWND const hwnd = (HWND)nativeWindow;
-
-    stats.seen      = gSeen;
-    stats.forwarded = gForwarded;
-    stats.lastKey   = gLastKey;
-    stats.hooked    = hwnd != NULL && IsWindow(hwnd) && GetPropA(hwnd, kProcProp) != NULL;
-
-    if (hwnd == NULL || ! IsWindow(hwnd))
-    {
-        std::strcpy(stats.target, "no window");
-        return;
-    }
-
-    HWND const target = forwardTarget(hwnd);
-    if (target == NULL)
-    {
-        std::strcpy(stats.target, "none (top-level)");
-        return;
-    }
-
-    // Name the window we post to, so a wrong target is recognisable on sight.
-    char cls[48] = {0};
-    GetClassNameA(target, cls, (int)sizeof(cls) - 1);
-    std::snprintf(stats.target, sizeof(stats.target), "%s%s 0x%llx",
-                  cls,
-                  target == GetAncestor(hwnd, GA_ROOTOWNER) ? " (owner)" : " (root)",
-                  (unsigned long long)(uintptr_t)target);
-}

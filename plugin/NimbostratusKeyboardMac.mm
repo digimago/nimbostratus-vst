@@ -23,18 +23,11 @@
 
 #include "NimbostratusKeyboard.h"
 
-#include <cstdio>
-#include <cstring>
-
 namespace {
 
 // Per-view flag, kept as an associated object: the views already exist by the
 // time the class is swapped in, so an ivar is not an option.
 char kCaptureKey;
-
-uint32_t sSeen      = 0;
-uint32_t sForwarded = 0;
-uint32_t sLastKey   = 0;
 
 Class sBaseClass        = Nil;
 Class sPassthroughClass = Nil;
@@ -49,34 +42,18 @@ bool wantsCapture(id self)
 
 void keyDownIMP(id self, SEL cmd, NSEvent* event)
 {
-    ++sSeen;
-    sLastKey = [event keyCode];
-
     if (wantsCapture(self))
-    {
         ((void (*)(id, SEL, NSEvent*))sOriginalKeyDown)(self, cmd, event);
-    }
     else
-    {
-        ++sForwarded;
         [[(NSView*)self nextResponder] keyDown:event];
-    }
 }
 
 void keyUpIMP(id self, SEL cmd, NSEvent* event)
 {
-    ++sSeen;
-    sLastKey = [event keyCode];
-
     if (wantsCapture(self))
-    {
         ((void (*)(id, SEL, NSEvent*))sOriginalKeyUp)(self, cmd, event);
-    }
     else
-    {
-        ++sForwarded;
         [[(NSView*)self nextResponder] keyUp:event];
-    }
 }
 
 // Builds the subclass on first use and swaps the view over to it.
@@ -150,23 +127,3 @@ void nimboReleaseKeyboard(const uintptr_t nativeWindow)
     object_setClass(view, sBaseClass);
 }
 
-void nimboGetKeyStats(const uintptr_t nativeWindow, NimboKeyStats& stats)
-{
-    NSView* const view = (NSView*)nativeWindow;
-
-    stats.seen      = sSeen;
-    stats.forwarded = sForwarded;
-    stats.lastKey   = sLastKey;
-    stats.hooked    = view != nil && object_getClass(view) == sPassthroughClass;
-
-    NSResponder* const next = view != nil ? [view nextResponder] : nil;
-    if (next == nil)
-    {
-        std::strcpy(stats.target, "none (no next responder)");
-        return;
-    }
-
-    // Name the responder we hand keys to, so a wrong target is recognisable.
-    std::snprintf(stats.target, sizeof(stats.target), "%s %p",
-                  class_getName(object_getClass(next)), (void*)next);
-}

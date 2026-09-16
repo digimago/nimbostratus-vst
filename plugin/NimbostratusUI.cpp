@@ -167,9 +167,7 @@ class NimbostratusUI : public UI
 public:
     NimbostratusUI()
         : UI(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT),
-          triggerHeld_(false),
-          apiKeyEvents_(0),
-          apiKeyClaimed_(0)
+          triggerHeld_(false)
     {
         // Fixed-size window; hi-DPI comes only from the host/OS scale factor.
         // The ImGuiWidget wrapper already scales fonts and style metrics by
@@ -211,15 +209,8 @@ protected:
     bool onKeyboard(const KeyboardEvent& ev) override
     {
         const bool used = UI::onKeyboard(ev);
-        const bool typing = ImGui::GetIO().WantTextInput;
 
-       #ifdef NIMBO_KEY_PASSTHROUGH
-        ++apiKeyEvents_;
-        if (used && typing)
-            ++apiKeyClaimed_;
-       #endif
-
-        return used && typing;
+        return used && ImGui::GetIO().WantTextInput;
     }
 
     void parameterChanged(uint32_t index, float value) override
@@ -387,9 +378,6 @@ protected:
         ImGui::SameLine(width - ImGui::CalcTextSize(version).x
                               - ImGui::GetStyle().WindowPadding.x);
         ImGui::TextColored(ImVec4(0.40f, 0.40f, 0.40f, 1.0f), "%s", version);
-       #ifdef NIMBO_KEY_PASSTHROUGH
-        keyRoutingTooltip();
-       #endif
 
         ImGui::End();
 
@@ -403,36 +391,6 @@ protected:
     }
 
 private:
-   #ifdef NIMBO_KEY_PASSTHROUGH
-    // Hover the version to see where key presses are actually going. Hosts
-    // differ, and none of this is observable from the outside otherwise.
-    void keyRoutingTooltip()
-    {
-        if (! ImGui::IsItemHovered())
-            return;
-
-        NimboKeyStats stats;
-        nimboGetKeyStats(getWindow().getNativeWindowHandle(), stats);
-
-        ImGui::BeginTooltip();
-        ImGui::Text("Key routing");
-        ImGui::Separator();
-        ImGui::Text("native hook   : %s", stats.hooked ? "installed" : "NOT installed");
-        ImGui::Text("keys seen     : %u", stats.seen);
-        ImGui::Text("handed to host: %u", stats.forwarded);
-        ImGui::Text("last key code : %u", stats.lastKey);
-        ImGui::Text("host target   : %s", stats.target);
-        ImGui::Text("via plugin API: %u", apiKeyEvents_);
-        ImGui::Text("claimed as ours: %u", apiKeyClaimed_);
-        ImGui::Text("imgui wants text: %s / keyboard: %s",
-                    ImGui::GetIO().WantTextInput ? "yes" : "no",
-                    ImGui::GetIO().WantCaptureKeyboard ? "yes" : "no");
-        ImGui::Separator();
-        ImGui::Text("Press space with this window focused, then hover again.");
-        ImGui::EndTooltip();
-    }
-   #endif
-
     void knob(uint32_t index, const char* label,
               float vmin, float vmax, float size, const char* fmt,
               bool withInput = false, const char* tipText = nullptr)
@@ -552,8 +510,6 @@ private:
 
     float values_[kParamCount];
     bool triggerHeld_;
-    uint32_t apiKeyEvents_;
-    uint32_t apiKeyClaimed_;
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NimbostratusUI)
 };
