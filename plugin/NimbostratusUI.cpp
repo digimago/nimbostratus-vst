@@ -352,6 +352,16 @@ protected:
             "Based on the excellent open-source work of Emilie Gillet - "
             "with community extensions by Matthias Puech & Julian Kammerl");
 
+        // Version, right-aligned on the credit line. The credit text leaves
+        // room to spare at the default width, and both scale together.
+        char version[24];
+        std::snprintf(version, sizeof(version), "v%d.%d.%d",
+                      NIMBO_VERSION_MAJOR, NIMBO_VERSION_MINOR,
+                      NIMBO_VERSION_PATCH);
+        ImGui::SameLine(width - ImGui::CalcTextSize(version).x
+                              - ImGui::GetStyle().WindowPadding.x);
+        ImGui::TextColored(ImVec4(0.40f, 0.40f, 0.40f, 1.0f), "%s", version);
+
         ImGui::End();
 
        #ifdef NIMBO_KEY_PASSTHROUGH
