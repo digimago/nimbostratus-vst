@@ -168,7 +168,8 @@ public:
     NimbostratusUI()
         : UI(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT),
           triggerHeld_(false),
-          apiKeyEvents_(0)
+          apiKeyEvents_(0),
+          apiKeyClaimed_(0)
     {
         // Fixed-size window; hi-DPI comes only from the host/OS scale factor.
         // The ImGuiWidget wrapper already scales fonts and style metrics by
@@ -198,16 +199,28 @@ public:
    #endif
 
 protected:
-   #ifdef NIMBO_KEY_PASSTHROUGH
-    // Keys that arrive through the plugin API rather than the native window.
-    // Which of the two routes a host uses is the thing we cannot see from the
-    // outside, so count them separately.
+    // Keys can reach a plugin two ways: through the host's plugin API, or
+    // straight to the native window. This is the plugin-API route, and what
+    // it returns tells the host whether the key was used - a host that is
+    // told yes keeps its own shortcuts to itself.
+    //
+    // The base implementation answers with io.WantCaptureKeyboard, which is
+    // broader than this UI needs. Feed the key to Dear ImGui either way, but
+    // only claim it while a value is actually being typed, matching what the
+    // native hook does on the other route.
     bool onKeyboard(const KeyboardEvent& ev) override
     {
+        const bool used = UI::onKeyboard(ev);
+        const bool typing = ImGui::GetIO().WantTextInput;
+
+       #ifdef NIMBO_KEY_PASSTHROUGH
         ++apiKeyEvents_;
-        return UI::onKeyboard(ev);
+        if (used && typing)
+            ++apiKeyClaimed_;
+       #endif
+
+        return used && typing;
     }
-   #endif
 
     void parameterChanged(uint32_t index, float value) override
     {
@@ -410,6 +423,10 @@ private:
         ImGui::Text("last key code : %u", stats.lastKey);
         ImGui::Text("host target   : %s", stats.target);
         ImGui::Text("via plugin API: %u", apiKeyEvents_);
+        ImGui::Text("claimed as ours: %u", apiKeyClaimed_);
+        ImGui::Text("imgui wants text: %s / keyboard: %s",
+                    ImGui::GetIO().WantTextInput ? "yes" : "no",
+                    ImGui::GetIO().WantCaptureKeyboard ? "yes" : "no");
         ImGui::Separator();
         ImGui::Text("Press space with this window focused, then hover again.");
         ImGui::EndTooltip();
@@ -536,6 +553,7 @@ private:
     float values_[kParamCount];
     bool triggerHeld_;
     uint32_t apiKeyEvents_;
+    uint32_t apiKeyClaimed_;
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NimbostratusUI)
 };
