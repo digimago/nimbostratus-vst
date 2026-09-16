@@ -1,5 +1,10 @@
 # Nimbostratus
 
+[![build](https://github.com/digimago/nimbostratus-vst/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/digimago/nimbostratus-vst/actions/workflows/build.yml)
+[![release](https://img.shields.io/github/v/release/digimago/nimbostratus-vst)](https://github.com/digimago/nimbostratus-vst/releases/latest)
+[![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![downloads](https://img.shields.io/github/downloads/digimago/nimbostratus-vst/total)](https://github.com/digimago/nimbostratus-vst/releases)
+
 A granular texture processor in VST3 and CLAP form, based on the excellent
 open-source work of Émilie Gillet — inspired by a certain much-loved cloudy
 eurorack module — running the community SuperParasites firmware DSP (stock +
@@ -25,6 +30,42 @@ resampler (same approach as the VCV Rack port).
 The UI relabels the knobs per mode, mirroring how the hardware repurposes its
 pots. Extra parameters vs hardware: Reverse (granular/looping), and a
 dedicated Slice knob for Beat Repeat (CV-only on hardware).
+
+## Install
+
+Download the two zips from the [latest release](https://github.com/digimago/nimbostratus-vst/releases/latest):
+`nimbostratus-vX.Y.Z-macos-universal.zip` (VST3 + CLAP, arm64 and Intel) and
+`nimbostratus-vX.Y.Z-windows-x64.zip`.
+
+### macOS
+
+1. Unzip, then copy the bundles into place:
+   - `nimbostratus.vst3` → `~/Library/Audio/Plug-Ins/VST3`
+   - `nimbostratus.clap` → `~/Library/Audio/Plug-Ins/CLAP`
+2. **Clear the quarantine flag.** The builds are ad-hoc signed but not
+   notarized, so after a browser download macOS refuses to load them — usually
+   silently, with the plugin simply never appearing in your host:
+
+   ```sh
+   xattr -cr ~/Library/Audio/Plug-Ins/VST3/nimbostratus.vst3
+   xattr -cr ~/Library/Audio/Plug-Ins/CLAP/nimbostratus.clap
+   ```
+
+### Windows
+
+Unzip and copy the bundles into place:
+
+- `nimbostratus.vst3` → `C:\Program Files\Common Files\VST3`
+- `nimbostratus.clap` → `C:\Program Files\Common Files\CLAP`
+
+Or into your own folder (e.g. `%USERPROFILE%\Documents\VST3`) if your host is
+pointed at one.
+
+### Not showing up?
+
+Hosts cache their plugin scan. In Ableton Live: Preferences → Plug-Ins, then
+toggle the folder off and on, or press Rescan. On macOS, a plugin that stays
+missing after a rescan is nearly always the quarantine step above.
 
 ## Build
 
@@ -88,14 +129,6 @@ Instruments" and the original module names are trademarks of Émilie Gillet
 and are deliberately not used to name or brand this plugin, following
 Mutable Instruments' own open-source guidelines.
 
-## macOS builds (CI)
-
-Every push builds a universal (arm64 + x86_64) `nimbostratus.vst3` and
-`nimbostratus.clap` on a macOS GitHub Actions runner — see `.github/workflows/build.yml`;
-grab them from the workflow run's artifacts. After copying to
-`~/Library/Audio/Plug-Ins/VST3`, clear quarantine if downloaded via browser:
-`xattr -cr ~/Library/Audio/Plug-Ins/VST3/nimbostratus.vst3`.
-
 ## Releases
 
 Version lives in one place: `project(Nimbostratus VERSION x.y.z)` in
@@ -108,8 +141,18 @@ To publish a release:
    CMake version, and publishes a GitHub Release with auto-generated notes
    and both zips attached.
 
-Plain pushes (no tag) still run both builds as CI validation with
-downloadable artifacts.
+The build badge at the top of this file covers both platforms: there is one
+workflow, and it fails if either the macOS or the Windows job does.
+
+Plain pushes (no tag) still run both builds as CI validation. Those runs
+attach the same bundles as workflow artifacts, which is how you get an
+unreleased build — note they need the same quarantine step as a release
+download on macOS, see [Install](#install).
+
+Never create the release by hand before the tag's workflow finishes. With
+immutable releases enabled, publishing burns that tag name permanently: the
+job cannot attach assets afterwards, and the tag cannot be reused or
+re-pushed even once the release is deleted.
 
 ## Development workflow
 
