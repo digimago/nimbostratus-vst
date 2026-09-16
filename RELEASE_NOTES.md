@@ -15,6 +15,15 @@ sessions load unchanged. Windows x64 and macOS universal builds attached below.
   Typing a value still works: the UI keeps the keyboard only while a numeric
   entry field is active (ctrl-click the **Pitch** knob).
 
+- **The credit line at the bottom of the window is visible again.** It sat
+  just below the bottom edge and had never actually been drawn. The window is
+  25px taller to make room for it.
+
+## Added
+
+- **The plugin version is shown in the bottom-right corner of the window**, so
+  it is clear at a glance which build a session is running.
+
 ## Install
 
 - **Windows**: unzip and copy `nimbostratus.vst3` to your custom VST3 folder

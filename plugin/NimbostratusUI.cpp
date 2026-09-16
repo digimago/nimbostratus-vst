@@ -364,8 +364,9 @@ protected:
             "Based on the excellent open-source work of Emilie Gillet - "
             "with community extensions by Matthias Puech & Julian Kammerl");
 
-        // Version, right-aligned on the credit line. The credit text leaves
-        // room to spare at the default width, and both scale together.
+        // Version, right-aligned on the credit line. That row is the last
+        // thing in the window and the height has to leave room for it - it
+        // used to start below the bottom edge, which hid the credits too.
         char version[24];
         std::snprintf(version, sizeof(version), "v%d.%d.%d",
                       NIMBO_VERSION_MAJOR, NIMBO_VERSION_MINOR,
