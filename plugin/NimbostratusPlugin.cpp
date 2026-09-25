@@ -31,6 +31,9 @@ START_NAMESPACE_DISTRHO
 static constexpr double   kEngineRate  = 32000.0;
 static constexpr uint32_t kBlock       = clouds::kMaxBlockSize; // 32
 static constexpr int      kSrcQuality  = 6;
+// One-pole coefficient for the gain trims, per host sample: ~2 ms time
+// constant at 48 kHz, fully settled in ~13 ms.
+static constexpr float    kGainSmoothing = 0.01f;
 
 #include "NimbostratusParams.h"
 
@@ -68,7 +71,12 @@ public:
         values_[kParamSlice]    = 0.0f;
         values_[kParamSync]     = 0.0f;
         values_[kParamActivity] = 0.0f;
+        values_[kParamInputGain]  = 0.0f;
+        values_[kParamOutputGain] = 0.0f;
         activityBlocks_ = 0;
+
+        inputGainSmoothed_  = 1.0f;
+        outputGainSmoothed_ = 1.0f;
 
         beatPos_ = 0.0;
         bpm_ = 120.0;
@@ -234,6 +242,18 @@ protected:
             parameter.symbol = "trig_activity";
             parameter.ranges.def = 0.0f; parameter.ranges.min = 0.0f; parameter.ranges.max = 1.0f;
             break;
+        case kParamInputGain:
+            parameter.name = "Input Gain";
+            parameter.symbol = "input_gain";
+            parameter.unit = "dB";
+            parameter.ranges.def = 0.0f; parameter.ranges.min = -24.0f; parameter.ranges.max = 24.0f;
+            break;
+        case kParamOutputGain:
+            parameter.name = "Output Gain";
+            parameter.symbol = "output_gain";
+            parameter.unit = "dB";
+            parameter.ranges.def = 0.0f; parameter.ranges.min = -24.0f; parameter.ranges.max = 24.0f;
+            break;
         }
     }
 
@@ -257,6 +277,11 @@ protected:
         lastDivIndex_ = INT64_MIN;
         activityBlocks_ = 0;
         values_[kParamActivity] = 0.0f;
+
+        // Snap the trims to their restored values, so playback does not open
+        // with a ramp up from unity.
+        inputGainSmoothed_  = dbToLinear(values_[kParamInputGain]);
+        outputGainSmoothed_ = dbToLinear(values_[kParamOutputGain]);
 
         if (srIn_ != nullptr)
             speex_resampler_reset_mem(srIn_);
@@ -307,12 +332,16 @@ protected:
         }
         const double beatsPerEngineBlock = bpm_ / 60.0 * (kBlock / kEngineRate);
 
-        // Interleave host input.
+        // Interleave host input, trimmed by the input gain. This sits ahead of
+        // the engine like the hardware's input pot, so driving it hot feeds the
+        // recording buffer and the feedback path harder.
+        const float inputGainTarget = dbToLinear(values_[kParamInputGain]);
         scratch_.resize(frames * 2);
         for (uint32_t i = 0; i < frames; ++i)
         {
-            scratch_[i * 2 + 0] = inputs[0][i];
-            scratch_[i * 2 + 1] = inputs[1][i];
+            inputGainSmoothed_ += kGainSmoothing * (inputGainTarget - inputGainSmoothed_);
+            scratch_[i * 2 + 0] = inputs[0][i] * inputGainSmoothed_;
+            scratch_[i * 2 + 1] = inputs[1][i] * inputGainSmoothed_;
         }
 
         // Host rate -> 32 kHz.
@@ -408,10 +437,12 @@ protected:
             outputs[0][i] = 0.0f;
             outputs[1][i] = 0.0f;
         }
+        const float outputGainTarget = dbToLinear(values_[kParamOutputGain]);
         for (uint32_t i = 0; i < n; ++i)
         {
-            outputs[0][missing + i] = fifoHostOut_[i * 2 + 0];
-            outputs[1][missing + i] = fifoHostOut_[i * 2 + 1];
+            outputGainSmoothed_ += kGainSmoothing * (outputGainTarget - outputGainSmoothed_);
+            outputs[0][missing + i] = fifoHostOut_[i * 2 + 0] * outputGainSmoothed_;
+            outputs[1][missing + i] = fifoHostOut_[i * 2 + 1] * outputGainSmoothed_;
         }
         fifoHostOut_.erase(fifoHostOut_.begin(), fifoHostOut_.begin() + n * 2);
 
@@ -421,6 +452,11 @@ protected:
     }
 
 private:
+    static float dbToLinear(float db)
+    {
+        return std::pow(10.0f, db * 0.05f);
+    }
+
     static int16_t toShort(float x)
     {
         float y = x * 32767.0f;
@@ -511,6 +547,11 @@ private:
 
     float values_[kParamCount];
     bool prevGate_;
+
+    // Gain trims ramp towards their target instead of stepping per block, so
+    // automating or dragging them does not click.
+    float inputGainSmoothed_;
+    float outputGainSmoothed_;
 
     // Tempo-sync state.
     double beatPos_;

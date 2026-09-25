@@ -31,6 +31,18 @@ The UI relabels the knobs per mode, mirroring how the hardware repurposes its
 pots. Extra parameters vs hardware: Reverse (granular/looping), and a
 dedicated Slice knob for Beat Repeat (CV-only on hardware).
 
+**In Gain** and **Out Gain** (-24 to +24 dB) are trims either side of the
+engine, standing in for the input and output pots on the hardware's panel.
+In Gain sits ahead of the engine, so pushing it drives the recording buffer
+and the feedback path harder; Out Gain sits after it. Ctrl-click either knob
+to type an exact value.
+
+The engine itself runs about 9 dB below unity — 6 dB of internal headroom in
+the firmware plus 3 dB from the equal-power Dry/Wet crossfade — which is
+inherited Mutable Instruments gain staging, not a porting bug. If you want
+100% dry to match bypass, set Out Gain to +9 dB. No single setting flattens
+the whole Dry/Wet sweep, since the dry and wet extremes need different makeup.
+
 ## Install
 
 Download the two zips from the [latest release](https://github.com/digimago/nimbostratus-vst/releases/latest):
