@@ -7,7 +7,7 @@
 // stops transport in Ableton Live.
 //
 // The UI reports once per frame whether Dear ImGui is taking typed input (the
-// pitch knob's numeric entry is the only place that happens). On the first
+// numeric entry on the Pitch and gain trim knobs). On the first
 // report the view's isa is swapped for a runtime-generated subclass whose key
 // handlers consult that flag: while text input is active the original pugl
 // handlers run, otherwise the event goes to the next responder, which is the
@@ -115,6 +115,20 @@ void nimboSetKeyboardCapture(const uintptr_t nativeWindow, const bool capture)
         objc_setAssociatedObject(view, &kCaptureKey,
                                  capture ? @YES : @NO,
                                  OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+
+    // Reclaim first responder before typing starts. Handing a key press to the
+    // next responder is what lets the host keep its shortcuts, but a host that
+    // acts on one usually makes its own view first responder in the process -
+    // in Ableton Live, pressing space once is enough. After that this view
+    // stops receiving -keyDown: entirely, so a numeric field would highlight
+    // on click and then silently swallow every character. Text entry worked
+    // exactly once per plugin window before this.
+    if (!capture)
+        return;
+
+    NSWindow* const window = [view window];
+    if (window != nil && [window firstResponder] != view)
+        [window makeFirstResponder:view];
 }
 
 void nimboReleaseKeyboard(const uintptr_t nativeWindow)
