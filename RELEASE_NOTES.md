@@ -1,10 +1,8 @@
 # Nimbostratus 1.4.0
 
-Adds gain trims either side of the engine, and fixes numeric entry on macOS.
-Windows x64 and macOS universal builds attached below.
-
-**Release candidate.** The macOS build is verified; the Windows build is not
-yet. Please report anything that misbehaves there before the final release.
+Adds gain trims either side of the engine, and fixes numeric entry on both
+platforms. Windows x64 and macOS universal builds attached below, both
+verified in Ableton Live.
 
 Existing sessions load unchanged: the two new parameters are appended after
 the existing ones, so automation lanes keep pointing at the same knobs.
@@ -26,6 +24,21 @@ the existing ones, so automation lanes keep pointing at the same knobs.
   whole Dry/Wet sweep, since the dry and wet extremes need different makeup.
 
 ## Fixed
+
+- **Confirming a typed value with Return no longer kills the field.** Pressing
+  Return committed the value, and from then on every numeric field closed the
+  instant it was clicked, looking dead until the plugin window was closed and
+  reopened. Escape did the same. The key press reached the UI but its release
+  did not — committing the value handed the keyboard back to the host in
+  between — so the UI was left holding the key down, and its auto-repeat shut
+  each field as it opened. Affected **Pitch** and both gain knobs on Windows
+  and macOS alike.
+
+- **Knob moves are reported to the host as complete edit gestures.** Typing a
+  value, or dragging one in a numeric field, told the host an edit had ended
+  without ever telling it one had begun, and an ordinary knob drag only
+  balanced by luck. Hosts that record automation from those gestures now see
+  each one whole.
 
 - **Typing a value works more than once per window (macOS).** Numeric entry
   worked on the first try after opening the plugin and then stopped: the field
