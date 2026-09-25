@@ -403,8 +403,19 @@ protected:
         // Keep the host's key commands working while the window is open: only
         // hold on to the keyboard while a value is actually being typed into
         // the UI, otherwise the spacebar would never reach the DAW's transport.
-        nimboSetKeyboardCapture(getWindow().getNativeWindowHandle(),
-                                ImGui::GetIO().WantTextInput);
+        const bool capturing = ImGui::GetIO().WantTextInput;
+        nimboSetKeyboardCapture(getWindow().getNativeWindowHandle(), capturing);
+
+        // Key presses only reach Dear ImGui while that capture is on, so the
+        // moment it ends anything still held is a release that went somewhere
+        // else. Both shims now keep a release with its press, but neither can
+        // see one that never arrives at all - a key let go after the host has
+        // taken the window's focus, say. A key stuck down is not a harmless
+        // leftover: Enter and Escape auto-repeat inside Dear ImGui, and either
+        // one closes a numeric field the instant it opens.
+        if (wasCapturing_ && ! capturing)
+            releaseStuckKeys();
+        wasCapturing_ = capturing;
        #endif
     }
 
@@ -420,6 +431,30 @@ private:
         ImGui::PopTextWrapPos();
         ImGui::EndTooltip();
     }
+
+   #ifdef NIMBO_KEY_PASSTHROUGH
+    // Text keys only, and only on the edge where capture ends. Modifiers are
+    // left alone: they are legitimately held across that edge (a ctrl-click
+    // elsewhere is one way to end text entry) and every later event carries
+    // fresh modifier state anyway. Mouse buttons share the key enum and must
+    // not be touched at all.
+    static void releaseStuckKeys()
+    {
+        ImGuiIO& io = ImGui::GetIO();
+
+        for (int k = ImGuiKey_NamedKey_BEGIN; k < ImGuiKey_NamedKey_END; ++k)
+        {
+            const ImGuiKey key = static_cast<ImGuiKey>(k);
+
+            if (key >= ImGuiKey_MouseLeft && key <= ImGuiKey_MouseWheelY)
+                continue;
+            if (key >= ImGuiKey_LeftCtrl && key <= ImGuiKey_RightSuper)
+                continue;
+            if (ImGui::IsKeyDown(key))
+                io.AddKeyEvent(key, false);
+        }
+    }
+   #endif
 
     // A begin/end edit pair has to reach the host balanced. An end with no
     // begin leaves Ableton Live holding a gesture that was never opened, and
@@ -591,6 +626,9 @@ private:
     float values_[kParamCount];
     bool editing_[kParamCount];
     bool triggerHeld_;
+   #ifdef NIMBO_KEY_PASSTHROUGH
+    bool wasCapturing_ = false;
+   #endif
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NimbostratusUI)
 };

@@ -34,12 +34,15 @@
 
 #include <windows.h>
 
+#include <cstdlib>
+
 #include "NimbostratusKeyboard.h"
 
 namespace {
 
 const char* const kProcProp    = "NimbostratusKeyProc";
 const char* const kCaptureProp = "NimbostratusKeyCapture";
+const char* const kHeldProp    = "NimbostratusKeyHeld";
 
 // pugl builds its window with the TCHAR-generic RegisterClassEx, so whether
 // the window is ANSI or Unicode depends on how it was compiled. Ask the window
@@ -66,6 +69,38 @@ bool wantsCapture(HWND hwnd)
     return GetPropA(hwnd, kCaptureProp) != NULL;
 }
 
+// One flag per virtual-key code, marking the presses that were handed to pugl.
+// A release has to follow its press: the two are separate messages and the
+// capture flag is free to change in between, which is what happens on Return
+// and Escape, the keys that end text entry. The press is captured, committing
+// the value turns capture off, and the release would otherwise go to the host
+// - leaving Dear ImGui holding the key down forever, its auto-repeat re-firing
+// inside every numeric field opened afterwards.
+unsigned char* heldKeys(HWND hwnd, bool create)
+{
+    unsigned char* held = (unsigned char*)GetPropA(hwnd, kHeldProp);
+
+    if (held == NULL && create)
+    {
+        held = (unsigned char*)std::calloc(256, 1);
+
+        if (held != NULL && ! SetPropA(hwnd, kHeldProp, (HANDLE)held))
+        {
+            std::free(held);
+            held = NULL;
+        }
+    }
+
+    return held;
+}
+
+void forgetHeldKeys(HWND hwnd)
+{
+    unsigned char* const held = (unsigned char*)GetPropA(hwnd, kHeldProp);
+    RemovePropA(hwnd, kHeldProp);
+    std::free(held);
+}
+
 // The host window that should get the keys we do not want: the application
 // window, not the floating frame the editor happens to sit in.
 HWND forwardTarget(HWND hwnd)
@@ -87,20 +122,56 @@ LRESULT CALLBACK keyboardProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     switch (msg)
     {
     case WM_KEYDOWN:
-    case WM_KEYUP:
     case WM_SYSKEYDOWN:
-    case WM_SYSKEYUP:
-    case WM_CHAR:
         if (! wantsCapture(hwnd))
         {
             HWND const target = forwardTarget(hwnd);
             if (target != NULL)
             {
-                if (msg != WM_CHAR)
-                    PostMessage(target, msg, wParam, lParam);
+                PostMessage(target, msg, wParam, lParam);
+                return 0;
+            }
+            break;
+        }
+
+        if (wParam < 256)
+        {
+            unsigned char* const held = heldKeys(hwnd, true);
+            if (held != NULL)
+                held[wParam] = 1;
+        }
+        break;
+
+    case WM_KEYUP:
+    case WM_SYSKEYUP:
+    {
+        unsigned char* const held = heldKeys(hwnd, false);
+        const bool followsPress =
+            held != NULL && wParam < 256 && held[wParam] != 0;
+
+        if (followsPress)
+        {
+            held[wParam] = 0;
+            break;
+        }
+
+        if (! wantsCapture(hwnd))
+        {
+            HWND const target = forwardTarget(hwnd);
+            if (target != NULL)
+            {
+                PostMessage(target, msg, wParam, lParam);
                 return 0;
             }
         }
+        break;
+    }
+
+    case WM_CHAR:
+        // Dropped rather than forwarded: the host's own message loop runs
+        // TranslateMessage over the key press we posted and makes its own.
+        if (! wantsCapture(hwnd) && forwardTarget(hwnd) != NULL)
+            return 0;
         break;
 
     case WM_NCDESTROY:
@@ -108,6 +179,7 @@ LRESULT CALLBACK keyboardProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         // torn down in an order that skipped nimboReleaseKeyboard().
         RemovePropA(hwnd, kProcProp);
         RemovePropA(hwnd, kCaptureProp);
+        forgetHeldKeys(hwnd);
         setWindowProc(hwnd, original);
         return callWindowProc(original, hwnd, msg, wParam, lParam);
     }
@@ -157,6 +229,6 @@ void nimboReleaseKeyboard(const uintptr_t nativeWindow)
 
     RemovePropA(hwnd, kProcProp);
     RemovePropA(hwnd, kCaptureProp);
+    forgetHeldKeys(hwnd);
     setWindowProc(hwnd, original);
 }
-
