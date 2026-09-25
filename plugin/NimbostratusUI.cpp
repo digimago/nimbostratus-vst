@@ -160,12 +160,10 @@ static const char* const kSyncTip =
 static const char* const kTrigTip =
     "Manual trigger: fires a grain, excitation or repeat. Flashes on every trigger, including synced ones";
 static const char* const kInGainTip =
-    "Trim before the engine, like the hardware's input pot. Higher settings "
-    "drive the buffer and feedback path harder";
+    "Trim before the engine. Pushing it drives the buffer and the feedback "
+    "path harder";
 static const char* const kOutGainTip =
-    "Trim after the engine, like the hardware's output pot. The engine runs "
-    "about 9 dB below unity (6 dB of internal headroom, plus 3 dB from the "
-    "Dry/Wet crossfade), so +9 dB here matches bypass at 100% dry";
+    "Trim after the engine. +9 dB matches bypass at 100% dry";
 static const char* const kQualityTip =
     "Buffer quality vs. length: mono and 8-bit u-law extend recording time and add vintage grit";
 
