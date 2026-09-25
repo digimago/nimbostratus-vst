@@ -159,6 +159,13 @@ static const char* const kSyncTip =
     "Locks the trigger clock to the host tempo; Density becomes the clock divider";
 static const char* const kTrigTip =
     "Manual trigger: fires a grain, excitation or repeat. Flashes on every trigger, including synced ones";
+static const char* const kInGainTip =
+    "Trim before the engine, like the hardware's input pot. Higher settings "
+    "drive the buffer and feedback path harder";
+static const char* const kOutGainTip =
+    "Trim after the engine, like the hardware's output pot. The engine runs "
+    "about 9 dB below unity (6 dB of internal headroom, plus 3 dB from the "
+    "Dry/Wet crossfade), so +9 dB here matches bypass at 100% dry";
 static const char* const kQualityTip =
     "Buffer quality vs. length: mono and 8-bit u-law extend recording time and add vintage grit";
 
@@ -246,7 +253,7 @@ protected:
         int quality = static_cast<int>(values_[kParamQuality] + 0.5f);
         if (ImGui::Combo("##quality", &quality, kQualityNames, 4))
             setIntParameter(kParamQuality, quality);
-        ImGui::SetItemTooltip("%s", kQualityTip);
+        tooltip(kQualityTip);
 
         ImGui::Spacing();
 
@@ -263,7 +270,7 @@ protected:
             }
             if (ImGui::Button(kModeNames[m], ImVec2(86.0f * s, 26.0f * s)))
                 setIntParameter(kParamMode, m);
-            ImGui::SetItemTooltip("%s", kModeHints[m]);
+            tooltip(kModeHints[m]);
             if (active)
                 ImGui::PopStyleColor(2);
         }
@@ -313,22 +320,22 @@ protected:
         const bool freeze = values_[kParamFreeze] > 0.5f;
         if (toggleButton("FREEZE", freeze, buttonSize))
             setBoolParameter(kParamFreeze, !freeze);
-        ImGui::SetItemTooltip("%s", kFreezeTip);
+        tooltip(kFreezeTip);
 
         const bool reverse = values_[kParamReverse] > 0.5f;
         if (toggleButton("REVERSE", reverse, buttonSize))
             setBoolParameter(kParamReverse, !reverse);
-        ImGui::SetItemTooltip("%s", kReverseTip);
+        tooltip(kReverseTip);
 
         if (toggleButton("SYNC", sync, buttonSize))
             setBoolParameter(kParamSync, !sync);
-        ImGui::SetItemTooltip("%s", kSyncTip);
+        tooltip(kSyncTip);
 
         // Lit while held, and flashes on every trigger fired by the engine
         // (reported through the Trigger Activity output parameter).
         const bool trigLit = triggerHeld_ || values_[kParamActivity] > 0.5f;
         toggleButton("TRIG", trigLit, buttonSize);
-        ImGui::SetItemTooltip("%s", kTrigTip);
+        tooltip(kTrigTip);
         const bool trigNow = ImGui::IsItemActive();
         if (trigNow != triggerHeld_)
         {
@@ -363,6 +370,13 @@ protected:
         if (mode != 6)
             ImGui::EndDisabled();
 
+        ImGui::SameLine(0.0f, 30.0f * s);
+        knob(kParamInputGain, "In Gain", -24.0f, 24.0f, smallKnob, "%+.1f dB",
+             /*withInput*/ true, kInGainTip);
+        ImGui::SameLine();
+        knob(kParamOutputGain, "Out Gain", -24.0f, 24.0f, smallKnob, "%+.1f dB",
+             /*withInput*/ true, kOutGainTip);
+
         ImGui::Spacing();
         ImGui::TextColored(ImVec4(0.40f, 0.40f, 0.40f, 1.0f),
             "Based on the excellent open-source work of Emilie Gillet - "
@@ -391,6 +405,18 @@ protected:
     }
 
 private:
+    // ImGui lays a tooltip out as a single unwrapped line, so the longer tips
+    // ran far wider than the 820px window. Wrap them at a readable measure.
+    void tooltip(const char* text)
+    {
+        if (text == nullptr || !ImGui::BeginItemTooltip())
+            return;
+        ImGui::PushTextWrapPos(300.0f * static_cast<float>(getScaleFactor()));
+        ImGui::TextUnformatted(text);
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
+    }
+
     void knob(uint32_t index, const char* label,
               float vmin, float vmax, float size, const char* fmt,
               bool withInput = false, const char* tipText = nullptr)
@@ -409,12 +435,22 @@ private:
             values_[index] = value;
             setParameterValue(index, value);
         }
-        if (tipText != nullptr)
-            ImGui::SetItemTooltip("%s", tipText);
+        tooltip(tipText);
         if (ImGui::IsItemDeactivated())
             editParameter(index, false);
-        // Double-click resets to default.
-        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
+        // Double-click resets to default. ImGuiKnobs::Knob wraps title, knob
+        // and (when withInput) the numeric field in a group, so the item rect
+        // here covers all three -- testing it directly would make a
+        // double-click inside the text field, the ordinary way to select what
+        // you typed, reset the parameter instead. Trim the field off the
+        // bottom and ignore the gesture outright while text entry is live.
+        ImVec2 resetMax = ImGui::GetItemRectMax();
+        if (withInput)
+            resetMax.y -= ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.y;
+        if (!ImGui::GetIO().WantTextInput
+            && ImGui::IsItemHovered()
+            && ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), resetMax)
+            && ImGui::IsMouseDoubleClicked(0))
         {
             const float def =
                 index == kParamPosition || index == kParamSize ||
@@ -445,7 +481,7 @@ private:
             values_[kParamDensity] = v;
             setParameterValue(kParamDensity, v);
         }
-        ImGui::SetItemTooltip("%s", kSyncedDensityTip);
+        tooltip(kSyncedDensityTip);
         if (ImGui::IsItemDeactivated())
             editParameter(kParamDensity, false);
         ImGui::PopID();

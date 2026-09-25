@@ -21,6 +21,11 @@ enum ParamId {
     kParamSlice,
     kParamSync,
     kParamActivity,  // output-only: lights the TRIG button on every trigger
+    // Appended last on purpose: CLAP ids are the raw parameter index and VST3
+    // ids are that index plus a fixed offset, so inserting above this point
+    // would move every later parameter and break automation in saved sessions.
+    kParamInputGain,
+    kParamOutputGain,
     kParamCount
 };
 
