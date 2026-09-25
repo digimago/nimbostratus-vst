@@ -186,6 +186,7 @@ public:
                     DISTRHO_UI_DEFAULT_HEIGHT * scaleFactor);
 
         std::memset(values_, 0, sizeof(values_));
+        std::memset(editing_, 0, sizeof(editing_));
         values_[kParamPosition] = 0.5f;
         values_[kParamSize]     = 0.5f;
         values_[kParamDensity]  = 0.5f;
@@ -222,7 +223,10 @@ protected:
 
     void parameterChanged(uint32_t index, float value) override
     {
-        if (index < kParamCount)
+        // A host echoes back what it was just sent. Taking that while the
+        // knob or its numeric field is held would have the echo fight the
+        // gesture in progress.
+        if (index < kParamCount && !editing_[index])
             values_[index] = value;
         repaint();
     }
@@ -417,6 +421,35 @@ private:
         ImGui::EndTooltip();
     }
 
+    // A begin/end edit pair has to reach the host balanced. An end with no
+    // begin leaves Ableton Live holding a gesture that was never opened, and
+    // the next click on the UI lands in that stale state -- which is what made
+    // the gain fields feel unreliable after a value had been typed or dragged.
+    // Track the pair here instead of inferring it from the widget's return
+    // value, so both calls happen exactly once whatever ImGui reports.
+    void beginGesture(uint32_t index)
+    {
+        if (editing_[index])
+            return;
+        editing_[index] = true;
+        editParameter(index, true);
+    }
+
+    void endGesture(uint32_t index)
+    {
+        if (!editing_[index])
+            return;
+        editing_[index] = false;
+        editParameter(index, false);
+    }
+
+    void setValue(uint32_t index, float value)
+    {
+        beginGesture(index);
+        values_[index] = value;
+        setParameterValue(index, value);
+    }
+
     void knob(uint32_t index, const char* label,
               float vmin, float vmax, float size, const char* fmt,
               bool withInput = false, const char* tipText = nullptr)
@@ -426,40 +459,50 @@ private:
         // id scope for uniqueness instead of "##" suffixes.
         ImGui::PushID(static_cast<int>(index));
         const ImGuiKnobFlags flags = withInput ? 0 : ImGuiKnobFlags_NoInput;
-        if (ImGuiKnobs::Knob(label, &value, vmin, vmax,
-                             (vmax - vmin) / 254.0f, fmt,
-                             ImGuiKnobVariant_WiperOnly, size, flags))
-        {
-            if (ImGui::IsItemActivated())
-                editParameter(index, true);
-            values_[index] = value;
-            setParameterValue(index, value);
-        }
+        const bool changed = ImGuiKnobs::Knob(label, &value, vmin, vmax,
+                                              (vmax - vmin) / 254.0f, fmt,
+                                              ImGuiKnobVariant_WiperOnly,
+                                              size, flags);
+        // Read the item state while it still describes this knob, before the
+        // tooltip pushes a window of its own.
+        const bool activated = ImGui::IsItemActivated();
+        const bool active    = ImGui::IsItemActive();
+        const bool hovered   = ImGui::IsItemHovered();
+        const ImVec2 rectMin = ImGui::GetItemRectMin();
+        ImVec2 resetMax      = ImGui::GetItemRectMax();
+
+        // Open the gesture on mouse-down, not on the first value change: the
+        // widget reports activation and movement on different frames, so the
+        // two cannot be driven from one test.
+        if (activated)
+            beginGesture(index);
+        if (changed)
+            setValue(index, value);
         tooltip(tipText);
-        if (ImGui::IsItemDeactivated())
-            editParameter(index, false);
+        // Closing on "no longer active" rather than on IsItemDeactivated()
+        // also covers the frame a typed value is committed, where the field
+        // deactivates and reports its change at once.
+        if (!active)
+            endGesture(index);
         // Double-click resets to default. ImGuiKnobs::Knob wraps title, knob
         // and (when withInput) the numeric field in a group, so the item rect
         // here covers all three -- testing it directly would make a
         // double-click inside the text field, the ordinary way to select what
         // you typed, reset the parameter instead. Trim the field off the
         // bottom and ignore the gesture outright while text entry is live.
-        ImVec2 resetMax = ImGui::GetItemRectMax();
         if (withInput)
             resetMax.y -= ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.y;
         if (!ImGui::GetIO().WantTextInput
-            && ImGui::IsItemHovered()
-            && ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), resetMax)
+            && hovered
+            && ImGui::IsMouseHoveringRect(rectMin, resetMax)
             && ImGui::IsMouseDoubleClicked(0))
         {
             const float def =
                 index == kParamPosition || index == kParamSize ||
                 index == kParamDensity || index == kParamTexture ||
                 index == kParamDryWet ? 0.5f : 0.0f;
-            editParameter(index, true);
-            values_[index] = def;
-            setParameterValue(index, def);
-            editParameter(index, false);
+            setValue(index, def);
+            endGesture(index);
         }
         ImGui::PopID();
     }
@@ -470,20 +513,21 @@ private:
     {
         int idx = syncDivIndex(values_[kParamDensity]);
         ImGui::PushID(static_cast<int>(kParamDensity));
-        if (ImGuiKnobs::KnobInt(label, &idx, 0, kNumSyncDivisions - 1,
-                                0.1f, "", ImGuiKnobVariant_Stepped, size,
-                                ImGuiKnobFlags_NoInput, kNumSyncDivisions))
-        {
-            if (ImGui::IsItemActivated())
-                editParameter(kParamDensity, true);
-            const float v = static_cast<float>(idx)
-                          / static_cast<float>(kNumSyncDivisions - 1);
-            values_[kParamDensity] = v;
-            setParameterValue(kParamDensity, v);
-        }
+        const bool changed = ImGuiKnobs::KnobInt(label, &idx, 0,
+                                                 kNumSyncDivisions - 1,
+                                                 0.1f, "", ImGuiKnobVariant_Stepped,
+                                                 size, ImGuiKnobFlags_NoInput,
+                                                 kNumSyncDivisions);
+        const bool activated = ImGui::IsItemActivated();
+        const bool active    = ImGui::IsItemActive();
+        if (activated)
+            beginGesture(kParamDensity);
+        if (changed)
+            setValue(kParamDensity, static_cast<float>(idx)
+                                  / static_cast<float>(kNumSyncDivisions - 1));
         tooltip(kSyncedDensityTip);
-        if (ImGui::IsItemDeactivated())
-            editParameter(kParamDensity, false);
+        if (!active)
+            endGesture(kParamDensity);
         ImGui::PopID();
     }
 
@@ -545,6 +589,7 @@ private:
     }
 
     float values_[kParamCount];
+    bool editing_[kParamCount];
     bool triggerHeld_;
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NimbostratusUI)
