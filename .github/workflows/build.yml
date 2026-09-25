@@ -8,7 +8,31 @@ on:
   workflow_dispatch:
 
 jobs:
+  # One definition of what this build is called, so the two build jobs and the
+  # release job cannot drift apart. A tag builds under its own name; anything
+  # else carries the version it was cut from plus the run it came out of and
+  # the commit it was built from, which is enough to trace a stray zip back.
+  label:
+    runs-on: ubuntu-latest
+    outputs:
+      label: ${{ steps.pick.outputs.label }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Work out the build label
+        id: pick
+        run: |
+          ver=$(sed -n 's/^project(.* VERSION \([0-9][0-9.]*\).*/\1/p' CMakeLists.txt)
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            label=$GITHUB_REF_NAME
+          else
+            label="$ver-run$GITHUB_RUN_NUMBER-${GITHUB_SHA:0:7}"
+          fi
+          echo "label=$label" >> "$GITHUB_OUTPUT"
+          echo "Build label: $label"
+
   macos:
+    needs: label
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
@@ -28,12 +52,13 @@ jobs:
       - name: Upload plugins
         uses: actions/upload-artifact@v7
         with:
-          name: nimbostratus-macos-universal
+          name: nimbostratus-${{ needs.label.outputs.label }}-macos-universal
           path: |
             build/bin/nimbostratus.vst3
             build/bin/nimbostratus.clap
 
   windows:
+    needs: label
     runs-on: windows-latest
     defaults:
       run:
@@ -61,14 +86,14 @@ jobs:
       - name: Upload plugins
         uses: actions/upload-artifact@v7
         with:
-          name: nimbostratus-windows-x64
+          name: nimbostratus-${{ needs.label.outputs.label }}-windows-x64
           path: |
             build/bin/nimbostratus.vst3
             build/bin/nimbostratus.clap
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [macos, windows]
+    needs: [label, macos, windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -90,10 +115,14 @@ jobs:
         with:
           path: artifacts
 
+      # On a tag the label is the tag name, so the zips keep the names they
+      # have always had.
       - name: Package release zips
+        env:
+          LABEL: ${{ needs.label.outputs.label }}
         run: |
-          (cd artifacts/nimbostratus-macos-universal && zip -qr "$GITHUB_WORKSPACE/nimbostratus-$GITHUB_REF_NAME-macos-universal.zip" .)
-          (cd artifacts/nimbostratus-windows-x64 && zip -qr "$GITHUB_WORKSPACE/nimbostratus-$GITHUB_REF_NAME-windows-x64.zip" .)
+          (cd "artifacts/nimbostratus-$LABEL-macos-universal" && zip -qr "$GITHUB_WORKSPACE/nimbostratus-$LABEL-macos-universal.zip" .)
+          (cd "artifacts/nimbostratus-$LABEL-windows-x64" && zip -qr "$GITHUB_WORKSPACE/nimbostratus-$LABEL-windows-x64.zip" .)
           ls -la *.zip
 
       # Two steps, because this repo has immutable releases turned on: once a
