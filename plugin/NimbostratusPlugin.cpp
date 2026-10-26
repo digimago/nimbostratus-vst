@@ -265,7 +265,7 @@ protected:
     void setParameterValue(uint32_t index, float value) override
     {
         if (index < kParamCount && index != kParamActivity)
-            values_[index] = value;
+            values_[index] = clampParameterValue(index, value);
     }
 
     void activate() override
@@ -310,6 +310,15 @@ protected:
 
     void run(const float** inputs, float** outputs, uint32_t frames) override
     {
+        // No resamplers means the host gave a sample rate speex rejects (0,
+        // say); output silence rather than dereference them.
+        if (srIn_ == nullptr || srOut_ == nullptr)
+        {
+            std::memset(outputs[0], 0, sizeof(float) * frames);
+            std::memset(outputs[1], 0, sizeof(float) * frames);
+            return;
+        }
+
 #ifdef NIMBO_HAVE_SSE
         const unsigned int oldCsr = _mm_getcsr();
         _mm_setcsr(oldCsr | 0x8040); // flush-to-zero + denormals-are-zero

@@ -225,7 +225,7 @@ protected:
         // knob or its numeric field is held would have the echo fight the
         // gesture in progress.
         if (index < kParamCount && !editing_[index])
-            values_[index] = value;
+            values_[index] = clampParameterValue(index, value);
         repaint();
     }
 
@@ -479,8 +479,8 @@ private:
     void setValue(uint32_t index, float value)
     {
         beginGesture(index);
-        values_[index] = value;
-        setParameterValue(index, value);
+        values_[index] = clampParameterValue(index, value);
+        setParameterValue(index, values_[index]);
     }
 
     void knob(uint32_t index, const char* label,
