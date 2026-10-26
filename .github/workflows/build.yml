@@ -7,6 +7,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Read-only by default; the release job asks for write access on its own.
+permissions:
+  contents: read
+
 jobs:
   # One definition of what this build is called, so the two build jobs and the
   # release job cannot drift apart. A tag builds under its own name; anything
@@ -68,7 +72,8 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: msys2/setup-msys2@v2
+      # Third-party actions are pinned to a commit, not a movable tag.
+      - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
         with:
           msystem: MINGW64
           update: false
@@ -134,7 +139,7 @@ jobs:
       # re-pushed and no later release can claim it, even after the release is
       # deleted. Push the tag and let this job do the rest.
       - name: Stage GitHub Release as a draft
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           body_path: RELEASE_NOTES.md
           generate_release_notes: true
