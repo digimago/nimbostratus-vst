@@ -29,6 +29,42 @@ enum ParamId {
     kParamCount
 };
 
+// Bounds every parameter value to the range its declaration in initParameter()
+// gives it. Hosts restore saved projects and send CLAP events without checking
+// those ranges, and the firmware DSP indexes lookup tables straight from these
+// values (as does the UI, from the mode), so an out-of-range or NaN value in a
+// crafted project would read out of bounds. Keep in step with initParameter().
+static inline float clampParameterValue(const uint32_t index, const float value)
+{
+    float min = 0.0f, max = 1.0f, def = 0.0f;
+
+    switch (index)
+    {
+    case kParamPosition:
+    case kParamSize:
+    case kParamDensity:
+    case kParamTexture:
+    case kParamDryWet:
+        def = 0.5f;
+        break;
+    case kParamPitch:
+    case kParamInputGain:
+    case kParamOutputGain:
+        min = -24.0f; max = 24.0f;
+        break;
+    case kParamMode:
+        max = 7.0f;
+        break;
+    case kParamQuality:
+        max = 3.0f;
+        break;
+    }
+
+    if (value != value) // NaN
+        return def;
+    return value < min ? min : value > max ? max : value;
+}
+
 // Tempo-sync clock divisions selected by the Density knob while Sync is on.
 enum { kNumSyncDivisions = 9 };
 
