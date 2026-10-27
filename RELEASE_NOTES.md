@@ -1,60 +1,51 @@
-# Nimbostratus 1.4.0
+# Nimbostratus 1.5.0
 
-Adds gain trims either side of the engine, and fixes numeric entry on both
-platforms. Windows x64 and macOS universal builds attached below, both
-verified in Ableton Live.
+Play the buffer from MIDI notes, the way the hardware's 1V/oct input lets a
+sequencer play it. Also fixes a crash a damaged or crafted project file could
+cause. Windows x64 and macOS universal builds attached below.
 
-Existing sessions load unchanged: the two new parameters are appended after
-the existing ones, so automation lanes keep pointing at the same knobs.
+Existing sessions load unchanged: note input is off until you switch it on,
+and the new parameters are appended after the existing ones, so automation
+lanes keep pointing at the same knobs.
 
 ## Added
 
-- **Input Gain and Output Gain** (-24 to +24 dB), standing in for the input
-  and output pots on the hardware's panel. **In Gain** sits ahead of the
-  engine, so pushing it drives the recording buffer and the feedback path
-  harder rather than just raising the level; **Out Gain** sits after it. Both
-  are smoothed, so automating them does not click.
+- **Note input (1V/oct).** A new **Notes** selector in the header lets
+  incoming MIDI notes transpose the buffer, on top of the **Pitch** knob.
+  Middle C plays it as recorded, C5 an octave up; the combined pitch reaches
+  ±48 semitones, as on the hardware. Freeze a texture, shorten the grains and
+  it becomes a playable voice.
 
-  These give you a way to deal with a long-standing surprise: the engine runs
-  about 9 dB below unity, so 100% dry is quieter than bypass. That is 6 dB of
-  internal headroom in the firmware plus 3 dB from the equal-power Dry/Wet
-  crossfade — inherited Mutable Instruments gain staging, not a porting bug,
-  and the hardware compensates the same way with its panel pots. Set **Out
-  Gain** to +9 dB to match bypass at 100% dry. No single setting flattens the
-  whole Dry/Wet sweep, since the dry and wet extremes need different makeup.
+  - **Pitch**: notes set the pitch.
+  - **Pitch+Trig**: every note-on also fires **Trigger**, restarting grains,
+    excitations or repeats with each note.
+
+  Playing is monophonic: the last note wins, and letting go of it falls back
+  to a note still held, without retriggering. Once every key is up the pitch
+  stays on the last note, as a sequencer's CV output would; switching back to
+  **Off** returns pitch to the knob. A lamp beside the selector lights while a
+  note is held.
+
+  Hosts deliver notes to an effect differently. In **Ableton Live**, add a
+  MIDI track, set its **MIDI To** to the track holding Nimbostratus and pick
+  Nimbostratus in the dropdown below; to follow what a synth plays, set that
+  track's **MIDI From** to the synth's track. **Reaper** passes MIDI down the
+  effect chain, so Nimbostratus after a synth hears the synth's notes
+  directly — which is why note input starts **Off**. The README has the
+  details.
 
 ## Fixed
 
-- **Confirming a typed value with Return no longer kills the field.** Pressing
-  Return committed the value, and from then on every numeric field closed the
-  instant it was clicked, looking dead until the plugin window was closed and
-  reopened. Escape did the same. The key press reached the UI but its release
-  did not — committing the value handed the keyboard back to the host in
-  between — so the UI was left holding the key down, and its auto-repeat shut
-  each field as it opened. Affected **Pitch** and both gain knobs on Windows
-  and macOS alike.
+- **Out-of-range values in a project file can no longer crash the host.**
+  Parameter values restored from a saved project, or sent as CLAP events,
+  reached the engine unchecked, and the engine looks values up in tables that
+  assume the normal range. A project with, say, a Size far beyond its maximum
+  or an unknown playback mode made the plugin read outside those tables,
+  which could take the host down with it. Every value is now held to its
+  range, and an invalid one falls back to the default.
 
-- **Knob moves are reported to the host as complete edit gestures.** Typing a
-  value, or dragging one in a numeric field, told the host an edit had ended
-  without ever telling it one had begun, and an ordinary knob drag only
-  balanced by luck. Hosts that record automation from those gestures now see
-  each one whole.
-
-- **Typing a value works more than once per window (macOS).** Numeric entry
-  worked on the first try after opening the plugin and then stopped: the field
-  would highlight when clicked but silently swallow everything typed into it.
-  Handing unused key presses back to the host, added in 1.3.4, meant the host
-  took keyboard focus the first time it acted on one — pressing the spacebar
-  once was enough — after which the plugin never saw another keystroke. The
-  **Pitch** knob has been affected since 1.3.4.
-
-- **Tooltips wrap** instead of running off the side of the window as a single
-  long line.
-
-- **Double-clicking a numeric field no longer resets the knob.** Double-click
-  still resets to the default on the knob face, but inside the value field —
-  where it selects what you typed — it now leaves the value alone. Affected
-  **Pitch** as well as the new gain knobs.
+- **An invalid sample rate no longer crashes the plugin.** A host reporting a
+  sample rate the resampler cannot work with now gets silence instead.
 
 ## Install
 

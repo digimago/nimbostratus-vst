@@ -18,7 +18,7 @@ sure you can reproduce an issue on the most recent release before reporting.
 
 | Version | Supported |
 | ------- | --------- |
-| latest release (1.4.x) | ✅ |
+| latest release (1.5.x) | ✅ |
 | older releases | ❌ |
 
 ## Reporting a vulnerability

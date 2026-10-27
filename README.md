@@ -185,11 +185,18 @@ Version lives in one place: `project(Nimbostratus VERSION x.y.z)` in
 `CMakeLists.txt` (the plugin reports it via `NIMBO_VERSION_*` defines).
 To publish a release:
 
-1. Bump the version in `CMakeLists.txt` (semver: breaking/feature/fix).
-2. Commit, then tag and push: `git tag v1.3.0 && git push origin main v1.3.0`
+1. Bump the version in `CMakeLists.txt` (semver: breaking/feature/fix) and
+   update `RELEASE_NOTES.md`, in a PR.
+2. Once it is merged, tag `main` and push the tag:
+   `git tag v1.3.0 origin/main && git push origin v1.3.0`
 3. CI builds Windows x64 + macOS universal, verifies the tag matches the
-   CMake version, and publishes a GitHub Release with auto-generated notes
-   and both zips attached.
+   CMake version, and stages a **draft** GitHub Release with the release
+   notes, auto-generated changes and both zips attached.
+4. Review the draft, then publish it from the Releases page.
+
+If the draft turns out wrong, delete it and the tag (`git push origin
+:refs/tags/v1.3.0`), fix things, and tag again. That only works while it is
+a draft.
 
 The build badge at the top of this file covers both platforms: there is one
 workflow, and it fails if either the macOS or the Windows job does.
@@ -199,10 +206,10 @@ attach the same bundles as workflow artifacts, which is how you get an
 unreleased build — note they need the same quarantine step as a release
 download on macOS, see [Install](#install).
 
-Never create the release by hand before the tag's workflow finishes. With
-immutable releases enabled, publishing burns that tag name permanently: the
-job cannot attach assets afterwards, and the tag cannot be reused or
-re-pushed even once the release is deleted.
+Never create or publish the release by hand before the tag's workflow
+finishes. With immutable releases enabled, publishing burns that tag name
+permanently: the job cannot attach assets afterwards, and the tag cannot be
+reused or re-pushed even once the release is deleted.
 
 ## Development workflow
 

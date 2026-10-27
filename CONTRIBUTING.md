@@ -88,8 +88,9 @@ compiled into the plugin via the `NIMBO_VERSION_*` defines.
   would break saved sessions).
 
 To cut a release, bump the version and update `RELEASE_NOTES.md` in a PR, then
-tag: `vX.Y.Z-rc.N` publishes a prerelease for testing, and `vX.Y.Z` publishes
-the final release with binaries for both platforms.
+tag: `vX.Y.Z-rc.N` stages a prerelease for testing, and `vX.Y.Z` stages
+the final release with binaries for both platforms. Either way the release
+is left as a draft for a maintainer to review and publish.
 
 ## Licensing
 
