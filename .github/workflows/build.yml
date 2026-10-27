@@ -130,14 +130,14 @@ jobs:
           (cd "artifacts/nimbostratus-$LABEL-windows-x64" && zip -qr "$GITHUB_WORKSPACE/nimbostratus-$LABEL-windows-x64.zip" .)
           ls -la *.zip
 
-      # Two steps, because this repo has immutable releases turned on: once a
-      # release is published its assets are frozen, and the action uploads
-      # after publishing. Building it as a draft lets the zips land first.
+      # Stops at a draft, for a maintainer to review and publish by hand. This
+      # repo has immutable releases turned on: once a release is published its
+      # assets are frozen, and publishing burns the tag name permanently - the
+      # tag cannot be re-pushed and no later release can claim it, even after
+      # the release is deleted. A draft burns nothing, so a bad one can still
+      # be deleted along with its tag and the tag pushed again.
       #
       # For the same reason, never create the release by hand before this runs.
-      # Publishing a release burns the tag name permanently - the tag cannot be
-      # re-pushed and no later release can claim it, even after the release is
-      # deleted. Push the tag and let this job do the rest.
       - name: Stage GitHub Release as a draft
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
@@ -146,11 +146,3 @@ jobs:
           prerelease: ${{ contains(github.ref_name, '-') }}
           draft: true
           files: nimbostratus-*.zip
-
-      - name: Publish the draft
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release edit "$GITHUB_REF_NAME" \
-            --draft=false \
-            --prerelease=${{ contains(github.ref_name, '-') }}
