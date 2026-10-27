@@ -73,7 +73,13 @@ public:
         values_[kParamActivity] = 0.0f;
         values_[kParamInputGain]  = 0.0f;
         values_[kParamOutputGain] = 0.0f;
+        values_[kParamNoteInput]  = kNoteInputOff;
+        values_[kParamNoteHeld]   = 0.0f;
         activityBlocks_ = 0;
+
+        clearNotes();
+        noteOffset_ = 0.0f;
+        noteTrigger_ = false;
 
         inputGainSmoothed_  = 1.0f;
         outputGainSmoothed_ = 1.0f;
@@ -254,6 +260,27 @@ protected:
             parameter.unit = "dB";
             parameter.ranges.def = 0.0f; parameter.ranges.min = -24.0f; parameter.ranges.max = 24.0f;
             break;
+        case kParamNoteInput:
+        {
+            parameter.hints |= kParameterIsInteger;
+            parameter.name = "Note Input";
+            parameter.symbol = "note_input";
+            parameter.ranges.def = 0.0f; parameter.ranges.min = 0.0f; parameter.ranges.max = 2.0f;
+            parameter.enumValues.count = kNumNoteInputModes;
+            parameter.enumValues.restrictedMode = true;
+            ParameterEnumerationValue* const values = new ParameterEnumerationValue[kNumNoteInputModes];
+            values[0].value = 0.0f; values[0].label = "Off";
+            values[1].value = 1.0f; values[1].label = "Pitch";
+            values[2].value = 2.0f; values[2].label = "Pitch + Trig";
+            parameter.enumValues.values = values;
+            break;
+        }
+        case kParamNoteHeld:
+            parameter.hints = kParameterIsOutput | kParameterIsBoolean;
+            parameter.name = "Note Held";
+            parameter.symbol = "note_held";
+            parameter.ranges.def = 0.0f; parameter.ranges.min = 0.0f; parameter.ranges.max = 1.0f;
+            break;
         }
     }
 
@@ -264,7 +291,7 @@ protected:
 
     void setParameterValue(uint32_t index, float value) override
     {
-        if (index < kParamCount && index != kParamActivity)
+        if (index < kParamCount && index != kParamActivity && index != kParamNoteHeld)
             values_[index] = clampParameterValue(index, value);
     }
 
@@ -277,6 +304,11 @@ protected:
         lastDivIndex_ = INT64_MIN;
         activityBlocks_ = 0;
         values_[kParamActivity] = 0.0f;
+
+        clearNotes();
+        noteOffset_ = 0.0f;
+        noteTrigger_ = false;
+        values_[kParamNoteHeld] = 0.0f;
 
         // Snap the trims to their restored values, so playback does not open
         // with a ramp up from unity.
@@ -308,8 +340,11 @@ protected:
         activate();
     }
 
-    void run(const float** inputs, float** outputs, uint32_t frames) override
+    void run(const float** inputs, float** outputs, uint32_t frames,
+             const MidiEvent* midiEvents, uint32_t midiEventCount) override
     {
+        handleNotes(midiEvents, midiEventCount);
+
         // No resamplers means the host gave a sample rate speex rejects (0,
         // say); output silence rather than dereference them.
         if (srIn_ == nullptr || srOut_ == nullptr)
@@ -402,7 +437,10 @@ protected:
             }
             beatPos_ += beatsPerEngineBlock;
 
-            const bool captured = applyParameters(syncTrigger);
+            // A note-on trigger waits here until an engine block runs: with
+            // small host buffers a whole run() can pass without one.
+            const bool captured = applyParameters(syncTrigger || noteTrigger_);
+            noteTrigger_ = false;
             if (captured)
                 activityBlocks_ = 96; // ~96 ms flash at 32 kHz block rate
             else if (activityBlocks_ > 0)
@@ -474,6 +512,80 @@ private:
         return static_cast<int16_t>(y);
     }
 
+    // Incoming notes act like the hardware's 1V/oct jack: monophonic, last
+    // note wins, and releasing it falls back to the newest note still held.
+    // Once every key is up the pitch stays where it was, as a sequencer's CV
+    // output would. Events are applied at the start of the host block rather
+    // than at their frame offset; the engine only takes new parameters every
+    // 32 samples at 32 kHz anyway.
+    void handleNotes(const MidiEvent* const events, const uint32_t count)
+    {
+        const int mode = static_cast<int>(values_[kParamNoteInput] + 0.5f);
+
+        if (mode == kNoteInputOff)
+        {
+            // Switching off hands pitch straight back to the knob.
+            clearNotes();
+            noteOffset_ = 0.0f;
+            noteTrigger_ = false;
+            values_[kParamNoteHeld] = 0.0f;
+            return;
+        }
+
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            const MidiEvent& ev(events[i]);
+            if (ev.size > MidiEvent::kDataSize || ev.size < 3)
+                continue;
+
+            const uint8_t status = ev.data[0] & 0xF0;
+            const uint8_t note   = ev.data[1] & 0x7F;
+            const uint8_t vel    = ev.data[2] & 0x7F;
+
+            if (status == 0x90 && vel > 0)
+            {
+                removeNote(note);
+                noteStack_[noteCount_++] = note;
+                noteOffset_ = static_cast<float>(note - kNoteInputReference);
+                if (mode == kNoteInputPitchTrigger)
+                    noteTrigger_ = true;
+            }
+            else if (status == 0x80 || status == 0x90)
+            {
+                const bool wasTop = noteCount_ > 0 && noteStack_[noteCount_ - 1] == note;
+                removeNote(note);
+                // Legato back to the previous note, without retriggering.
+                if (wasTop && noteCount_ > 0)
+                    noteOffset_ = static_cast<float>(
+                        noteStack_[noteCount_ - 1] - kNoteInputReference);
+            }
+            else if (status == 0xB0 && (ev.data[1] == 120 || ev.data[1] == 123))
+            {
+                // All Sound Off / All Notes Off.
+                clearNotes();
+            }
+        }
+
+        values_[kParamNoteHeld] = noteCount_ > 0 ? 1.0f : 0.0f;
+    }
+
+    void removeNote(const uint8_t note)
+    {
+        for (uint32_t i = 0; i < noteCount_; ++i)
+        {
+            if (noteStack_[i] != note)
+                continue;
+            std::memmove(&noteStack_[i], &noteStack_[i + 1], noteCount_ - i - 1);
+            --noteCount_;
+            return;
+        }
+    }
+
+    void clearNotes()
+    {
+        noteCount_ = 0;
+    }
+
     bool applyParameters(const bool syncTrigger)
     {
         processor_.set_playback_mode(static_cast<clouds::PlaybackMode>(
@@ -486,10 +598,16 @@ private:
         const bool sync = values_[kParamSync] > 0.5f;
         const float density = sync ? 0.5f : values_[kParamDensity];
 
+        // Knob plus note, clamped to the same +/-48 semitones the hardware
+        // allows for its knob plus 1V/oct sum.
+        float pitch = values_[kParamPitch] + noteOffset_;
+        if (pitch < -48.0f) pitch = -48.0f;
+        if (pitch > 48.0f) pitch = 48.0f;
+
         clouds::Parameters* const p = processor_.mutable_parameters();
         p->position      = values_[kParamPosition];
         p->size          = values_[kParamSize];
-        p->pitch         = values_[kParamPitch];
+        p->pitch         = pitch;
         p->density       = density;
         p->texture       = values_[kParamTexture];
         p->dry_wet       = values_[kParamDryWet];
@@ -509,7 +627,7 @@ private:
         p->kammerl.clock_divider    = values_[kParamSpread];
         p->kammerl.pitch_mode       = values_[kParamFeedback];
         p->kammerl.distortion       = values_[kParamReverb];
-        float kammerlPitch = values_[kParamPitch] / 48.0f + 0.5f;
+        float kammerlPitch = pitch / 48.0f + 0.5f;
         if (kammerlPitch < 0.0f) kammerlPitch = 0.0f;
         if (kammerlPitch > 1.0f) kammerlPitch = 1.0f;
         p->kammerl.pitch = kammerlPitch;
@@ -568,6 +686,12 @@ private:
     double beatsPerBar_;
     int64_t lastDivIndex_;
     int32_t activityBlocks_;
+
+    // MIDI note input: held notes in press order, newest last.
+    uint8_t noteStack_[128];
+    uint32_t noteCount_;
+    float noteOffset_;  // semitones added to the Pitch knob
+    bool noteTrigger_;  // a note-on Trigger not yet taken by the engine
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NimbostratusPlugin)
 };

@@ -164,6 +164,13 @@ static const char* const kInGainTip =
     "path harder";
 static const char* const kOutGainTip =
     "Trim after the engine. +9 dB matches bypass at 100% dry";
+static const char* const kNoteInputNames[kNumNoteInputModes] = {
+    "Notes: Off", "Notes: Pitch", "Notes: Pitch+Trig"
+};
+static const char* const kNoteInputTip =
+    "MIDI notes as a 1V/oct input. Pitch: notes transpose the buffer around "
+    "middle C, on top of the Pitch knob. Pitch+Trig: every note also fires "
+    "Trigger. The dot lights while a note is held";
 static const char* const kQualityTip =
     "Buffer quality vs. length: mono and 8-bit u-law extend recording time and add vintage grit";
 
@@ -250,6 +257,21 @@ protected:
         ImGui::PopFont();
         ImGui::SameLine();
         ImGui::TextColored(ImVec4(0.45f, 0.75f, 0.78f, 1.0f), " granular texture processor");
+
+        // Note input selector and its held-note dot, sized from the widest
+        // label so they fit whatever font scale the host gives us.
+        ImGui::SameLine(0.0f, 16.0f * s);
+        noteHeldDot(values_[kParamNoteHeld] > 0.5f);
+        tooltip(kNoteInputTip);
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(ImGui::CalcTextSize(kNoteInputNames[kNoteInputPitchTrigger]).x
+                                + ImGui::GetFrameHeight()
+                                + ImGui::GetStyle().FramePadding.x * 2.0f);
+        int noteInput = static_cast<int>(values_[kParamNoteInput] + 0.5f);
+        if (ImGui::Combo("##noteinput", &noteInput, kNoteInputNames, kNumNoteInputModes))
+            setIntParameter(kParamNoteInput, noteInput);
+        tooltip(kNoteInputTip);
+
         ImGui::SameLine(width - 250.0f * s);
         ImGui::SetNextItemWidth(240.0f * s);
         int quality = static_cast<int>(values_[kParamQuality] + 0.5f);
@@ -577,6 +599,19 @@ private:
         if (active)
             ImGui::PopStyleColor(2);
         return clicked;
+    }
+
+    // Small round lamp, vertically centered on a frame-height row: accent
+    // colored while a MIDI note is held.
+    void noteHeldDot(bool lit)
+    {
+        const float h = ImGui::GetFrameHeight();
+        const ImVec2 pos = ImGui::GetCursorScreenPos();
+        const float r = h * 0.22f;
+        ImGui::GetWindowDrawList()->AddCircleFilled(
+            ImVec2(pos.x + r, pos.y + h * 0.5f), r,
+            lit ? IM_COL32(115, 191, 199, 255) : IM_COL32(64, 69, 74, 255));
+        ImGui::Dummy(ImVec2(r * 2.0f, h));
     }
 
     void setIntParameter(uint32_t index, int value)
