@@ -43,6 +43,32 @@ inherited Mutable Instruments gain staging, not a porting bug. If you want
 100% dry to match bypass, set Out Gain to +9 dB. No single setting flattens
 the whole Dry/Wet sweep, since the dry and wet extremes need different makeup.
 
+## Note input (1V/oct)
+
+MIDI notes can play the buffer like the hardware's 1V/oct jack. The **Notes**
+selector in the header picks what they do:
+
+- **Off** (default): notes are ignored.
+- **Pitch**: notes transpose the buffer around middle C (C4 plays it as
+  recorded, C5 an octave up), on top of the Pitch knob. The combined pitch is
+  limited to ±48 semitones, as on the hardware.
+- **Pitch+Trig**: the same, and every note-on also fires Trigger.
+
+Playing is monophonic: the last note wins, and releasing it falls back to any
+note still held. Once every key is up, the pitch stays on the last note, as a
+sequencer's CV output would. Switching to Off returns pitch to the knob. The
+dot next to the selector lights while a note is held.
+
+Notes reach an effect differently per host:
+
+- **Ableton Live**: notes on a track stop at its instrument, so add a separate
+  MIDI track, set its **MIDI To** to the track holding Nimbostratus, and pick
+  Nimbostratus in the dropdown below. To follow what a synth plays, set that
+  track's **MIDI From** to the synth's track.
+- **Reaper** passes MIDI down the effect chain, so Nimbostratus after a synth
+  receives the synth's notes as they are. This is why Note Input defaults
+  to Off.
+
 ## Install
 
 Download the two zips from the [latest release](https://github.com/digimago/nimbostratus-vst/releases/latest):
@@ -110,6 +136,18 @@ tools/mingw64/bin/g++.exe -O2 -DTEST -Wno-narrowing -w -I$S \
   $S/supercell/dsp/pvoc/{frame_transformation,phase_vocoder,spectral_clouds_transformation,stft}.cc \
   $S/supercell/resources.cc $S/stmlib/utils/random.cc $S/stmlib/dsp/{atan,units}.cc \
   -o test/offline_test.exe -static && ./test/offline_test.exe
+```
+
+`test/note_input_test.cc` runs the whole plugin, through DPF's own wrapper,
+with MIDI notes: it checks the output pitch for each note, legato fallback,
+the held-pitch and Off behaviour, the Note Held lamp and note-on triggers.
+Build the plugin first; the test links against its DSP library:
+
+```sh
+FL="-std=c++14 -O2 -DTEST -DNIMBO_VERSION_MAJOR=0 -DNIMBO_VERSION_MINOR=0 -DNIMBO_VERSION_PATCH=0 -Iplugin -Idpf/distrho -Idpf/distrho/src"
+tools/mingw64/bin/g++.exe $FL -DDISTRHO_PLUGIN_TARGET_STATIC \
+  test/note_input_test.cc dpf/distrho/DistrhoPluginMain.cpp build/libnimbostratus-dsp.a \
+  -o test/note_input_test.exe -static && ./test/note_input_test.exe
 ```
 
 ## Sources

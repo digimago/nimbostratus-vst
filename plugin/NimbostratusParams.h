@@ -26,8 +26,23 @@ enum ParamId {
     // would move every later parameter and break automation in saved sessions.
     kParamInputGain,
     kParamOutputGain,
+    kParamNoteInput, // NoteInputMode: what incoming MIDI notes do
+    kParamNoteHeld,  // output-only: lit while a MIDI note is held
     kParamCount
 };
+
+// Incoming MIDI notes stand in for the hardware's 1V/oct jack. Off by
+// default: in a host that passes MIDI down the effect chain (Reaper), the
+// notes a synth plays would otherwise start repitching existing sessions.
+enum NoteInputMode {
+    kNoteInputOff = 0,
+    kNoteInputPitch,        // notes transpose the buffer
+    kNoteInputPitchTrigger, // ... and every note-on also fires Trigger
+    kNumNoteInputModes
+};
+
+// The note that plays the buffer untransposed: middle C.
+enum { kNoteInputReference = 60 };
 
 // Bounds every parameter value to the range its declaration in initParameter()
 // gives it. Hosts restore saved projects and send CLAP events without checking
@@ -57,6 +72,9 @@ static inline float clampParameterValue(const uint32_t index, const float value)
         break;
     case kParamQuality:
         max = 3.0f;
+        break;
+    case kParamNoteInput:
+        max = kNumNoteInputModes - 1;
         break;
     }
 
